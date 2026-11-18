@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f7f8f6;
+  --surface: #ffffff;
+  --foreground: #1c2321;
+  --muted: #5d6b66;
+  --border: #dfe5e2;
+  --brand: #0f766e;
+  --brand-strong: #115e59;
+  --brand-soft: #e6f4f1;
+  --danger: #b42318;
+  --danger-soft: #fdecea;
+  --warning: #a15c07;
+  --warning-soft: #fdf3e1;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #111614;
+    --surface: #1a201e;
+    --foreground: #e8eeeb;
+    --muted: #9aa8a2;
+    --border: #2c3532;
+    --brand: #2dd4bf;
+    --brand-strong: #5eead4;
+    --brand-soft: #14302c;
+    --danger: #f97066;
+    --danger-soft: #3a1714;
+    --warning: #fbbf24;
+    --warning-soft: #33270f;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-soft: var(--brand-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+input,
+select,
+textarea {
+  font-size: 16px; /* evita el zoom automático en iOS */
+}

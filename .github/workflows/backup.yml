@@ -1,0 +1,32 @@
+# Respaldo semanal de la base de datos (el plan gratuito de Supabase no incluye
+# respaldos descargables). Requiere el secreto SUPABASE_DB_URL en GitHub:
+# Supabase → Connect → Session pooler → URI (con la contraseña de la base).
+# El respaldo se guarda como artefacto privado del repositorio por 30 días.
+name: Respaldo semanal
+
+on:
+  schedule:
+    - cron: "0 9 * * 0" # domingos 03:00 hora del centro de México
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Instalar cliente de Postgres 17
+        run: |
+          sudo apt-get install -y postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y postgresql-client-17
+      - name: pg_dump
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          /usr/lib/postgresql/17/bin/pg_dump "$DB_URL" \
+            --schema=public --schema=private --no-owner --no-privileges \
+            --format=custom --file=scanpaw-$(date +%F).dump
+      - uses: actions/upload-artifact@v4
+        with:
+          name: scanpaw-backup
+          path: scanpaw-*.dump
+          retention-days: 30
