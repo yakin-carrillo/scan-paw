@@ -52,6 +52,10 @@ export default async function PetPage({ params, searchParams }: PageProps<"/masc
 
   return (
     <div className="flex flex-col gap-5">
+      {/* En modo app (pantalla de inicio) no hay botón "atrás" del navegador. */}
+      <Link href={isOwner ? "/mascotas" : "/vet"} className="-mb-2 self-start text-sm text-muted">
+        ← {isOwner ? "Mis mascotas" : "Mis pacientes"}
+      </Link>
       {record.isVetViewer && record.myAccessExpires && (
         <Alert tone="info">
           Acceso como MVZ hasta el {formatDateTime(record.myAccessExpires)}. Tus registros quedan firmados con tu

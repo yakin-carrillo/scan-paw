@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PetForm } from "@/components/pet-form";
 import { Card, FlashMessages, PageTitle } from "@/components/ui";
@@ -17,6 +18,9 @@ export default async function EditarMascotaPage({
 
   return (
     <>
+      <Link href={`/mascotas/${id}`} className="mb-3 inline-block text-sm text-muted">
+        ← {record.pet.name}
+      </Link>
       <PageTitle title={`Editar a ${record.pet.name}`} />
       <FlashMessages error={query.error} />
       <Card>

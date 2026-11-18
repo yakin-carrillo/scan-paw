@@ -54,6 +54,12 @@ export default async function CuentaPage({ searchParams }: PageProps<"/cuenta">)
         </p>
       </Card>
 
+      <form action="/salir" method="post">
+        <Button variant="secondary" className="w-full sm:w-auto">
+          Cerrar sesión
+        </Button>
+      </form>
+
       <Card>
         <h2 className="font-semibold text-danger">Eliminar cuenta</h2>
         <div className="mt-2">

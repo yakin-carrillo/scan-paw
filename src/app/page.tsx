@@ -1,4 +1,6 @@
+import { redirect } from "next/navigation";
 import { ButtonLink, Card } from "@/components/ui";
+import { getSession } from "@/lib/auth";
 
 const steps = [
   {
@@ -15,7 +17,13 @@ const steps = [
   },
 ];
 
-export default function Home() {
+export default async function Home() {
+  // Con sesión (p. ej. al abrir la app desde la pantalla de inicio) va directo a su panel.
+  const session = await getSession();
+  if (session && !session.onboarded) redirect("/bienvenida");
+  if (session?.profile.role === "vet") redirect("/vet");
+  if (session) redirect("/mascotas");
+
   return (
     <div className="flex flex-col gap-10">
       <section className="flex flex-col gap-4 pt-4">

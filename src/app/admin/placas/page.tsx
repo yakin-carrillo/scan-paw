@@ -35,6 +35,9 @@ export default async function PlacasAdminPage({ searchParams }: PageProps<"/admi
 
   return (
     <>
+      <a href="/admin" className="mb-3 inline-block text-sm text-muted">
+        ← Administración
+      </a>
       <PageTitle
         title="Placas"
         subtitle="Genera lotes sin asignar. Cada placa lleva el QR y su código; el código de activación va en el empaque."
