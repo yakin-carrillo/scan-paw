@@ -10,6 +10,8 @@ export type Session = {
   profile: Profile;
   vet: VetProfile | null;
   isVerifiedVet: boolean;
+  /** Completó el registro guiado (teléfono, tipo de cuenta y consentimiento). */
+  onboarded: boolean;
 };
 
 /** Capa de acceso a datos: lee la sesión una vez por solicitud. */
@@ -42,13 +44,18 @@ export const getSession = cache(async (): Promise<Session | null> => {
     profile,
     vet,
     isVerifiedVet: profile.role === "vet" && vet?.status === "approved",
+    onboarded: Boolean(profile.privacy_accepted_at),
   };
 });
 
+/** Exige sesión iniciada y registro completo (si no, manda a /bienvenida). */
 export async function requireSession(next?: string): Promise<Session> {
   const session = await getSession();
   if (!session) {
     redirect(next ? `/entrar?next=${encodeURIComponent(next)}` : "/entrar");
+  }
+  if (!session.onboarded) {
+    redirect(next ? `/bienvenida?next=${encodeURIComponent(next)}` : "/bienvenida");
   }
   return session;
 }

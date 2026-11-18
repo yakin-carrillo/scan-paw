@@ -2,86 +2,66 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { getSession } from "@/lib/auth";
 import { siteUrl } from "@/lib/env";
-import { cedulaSchema, firstError, formObject, optionalText, phoneSchema, safeNext } from "@/lib/forms";
+import { cedulaSchema, firstError, formObject, friendlyDbError, optionalText, phoneSchema, safeNext } from "@/lib/forms";
 import { createClient } from "@/lib/supabase/server";
 
-const baseSignup = z.object({
-  full_name: z.string().trim().min(3, "Escribe tu nombre completo.").max(120),
-  email: z.email("Correo no válido."),
-  phone: phoneSchema,
-  password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres."),
-  privacy: z.literal("on", { error: "Debes aceptar el aviso de privacidad." }),
-});
-
-const vetSignup = baseSignup.extend({
-  cedula: cedulaSchema,
-  clinic_name: optionalText(120),
-});
-
-export async function signUp(formData: FormData) {
-  const type = formData.get("tipo") === "vet" ? "vet" : "owner";
-  const back = `/registro${type === "vet" ? "?tipo=vet&" : "?"}`;
-  const parsed = (type === "vet" ? vetSignup : baseSignup).safeParse(formObject(formData));
-  if (!parsed.success) {
-    redirect(`${back}error=${encodeURIComponent(firstError(parsed.error))}`);
-  }
-  const data = parsed.data as z.infer<typeof vetSignup>;
-
+/** Inicia el flujo OAuth con Google; vuelve a /auth/confirm con ?code=. */
+export async function signInWithGoogle(formData: FormData) {
+  const next = safeNext(formData.get("next"));
   const supabase = await createClient();
-  const { error } = await supabase.auth.signUp({
-    email: data.email,
-    password: data.password,
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
     options: {
-      emailRedirectTo: `${siteUrl()}/auth/confirm?next=/mascotas`,
-      data: {
-        role: type,
-        full_name: data.full_name,
-        phone: data.phone.replace(/\s/g, ""),
-        privacy_accepted: "true",
-        ...(type === "vet" ? { cedula: data.cedula, clinic_name: data.clinic_name ?? null } : {}),
-      },
+      redirectTo: `${siteUrl()}/auth/confirm?next=${encodeURIComponent(next)}`,
+      queryParams: { prompt: "select_account" },
     },
   });
-
-  if (error) {
-    redirect(`${back}error=${encodeURIComponent("No se pudo crear la cuenta: " + error.message)}`);
+  if (error || !data.url) {
+    redirect(`/entrar?error=${encodeURIComponent("No se pudo iniciar sesión con Google.")}`);
   }
-  redirect(`/entrar?ok=${encodeURIComponent("Te enviamos un correo para confirmar tu cuenta.")}`);
+  redirect(data.url);
 }
 
-const loginSchema = z.object({
-  email: z.email("Correo no válido."),
-  password: z.string().min(1, "Escribe tu contraseña."),
-});
+const onboardingSchema = z
+  .object({
+    tipo: z.enum(["owner", "vet"]),
+    full_name: z.string().trim().min(3, "Escribe tu nombre completo.").max(120),
+    phone: phoneSchema,
+    cedula: optionalText(8),
+    clinic_name: optionalText(120),
+    privacy: z.literal("on", { error: "Debes aceptar el aviso de privacidad." }),
+    next: z.string().optional(),
+  })
+  .superRefine((d, ctx) => {
+    if (d.tipo === "vet" && !cedulaSchema.safeParse(d.cedula ?? "").success) {
+      ctx.addIssue({ code: "custom", message: "La cédula profesional tiene 7 u 8 dígitos.", path: ["cedula"] });
+    }
+  });
 
-export async function signIn(formData: FormData) {
-  const next = safeNext(formData.get("next"));
-  const parsed = loginSchema.safeParse(formObject(formData));
+/** Registro guiado: tipo de cuenta, teléfono, cédula (MVZ) y consentimiento. */
+export async function completeOnboarding(formData: FormData) {
+  const session = await getSession();
+  if (!session) redirect("/entrar");
+
+  const tipo = formData.get("tipo") === "vet" ? "vet" : "owner";
+  const parsed = onboardingSchema.safeParse(formObject(formData));
   if (!parsed.success) {
-    redirect(`/entrar?next=${encodeURIComponent(next)}&error=${encodeURIComponent(firstError(parsed.error))}`);
+    redirect(`/bienvenida?tipo=${tipo}&error=${encodeURIComponent(firstError(parsed.error))}`);
   }
+  const d = parsed.data;
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword(parsed.data);
+  const { error } = await supabase.rpc("complete_onboarding", {
+    p_role: d.tipo,
+    p_full_name: d.full_name,
+    p_phone: d.phone.replace(/\s/g, ""),
+    p_cedula: d.tipo === "vet" ? d.cedula : null,
+    p_clinic: d.tipo === "vet" ? (d.clinic_name ?? null) : null,
+  });
   if (error) {
-    const msg =
-      error.code === "email_not_confirmed"
-        ? "Confirma tu correo antes de entrar."
-        : "Correo o contraseña incorrectos.";
-    redirect(`/entrar?next=${encodeURIComponent(next)}&error=${encodeURIComponent(msg)}`);
+    redirect(`/bienvenida?tipo=${tipo}&error=${encodeURIComponent(friendlyDbError(error.message))}`);
   }
-  redirect(next);
-}
-
-export async function requestPasswordReset(formData: FormData) {
-  const email = z.email().safeParse(formData.get("email"));
-  if (email.success) {
-    const supabase = await createClient();
-    await supabase.auth.resetPasswordForEmail(email.data, {
-      redirectTo: `${siteUrl()}/auth/confirm?next=/cuenta/contrasena`,
-    });
-  }
-  // Mismo mensaje exista o no la cuenta, para no revelar correos registrados.
-  redirect(`/recuperar?ok=${encodeURIComponent("Si el correo existe, te enviamos un enlace.")}`);
+  redirect(d.tipo === "vet" ? "/vet" : safeNext(d.next));
 }

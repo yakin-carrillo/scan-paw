@@ -103,26 +103,46 @@ for (const file of readdirSync(dir).filter((f) => f.endsWith(".sql")).sort()) {
   console.log(`Migración aplicada: ${file}`);
 }
 
-const owner = await signUp({ role: "owner", full_name: "Ana López", phone: "5512345678", privacy_accepted: "true" });
-const other = await signUp({ role: "owner", full_name: "Beto Ruiz", phone: "5587654321" });
-const vet = await signUp({ role: "vet", full_name: "Dra. Carla Díaz", phone: "5511112222", cedula: "1234567" });
-const vet2 = await signUp({ role: "vet", full_name: "Dr. Diego Mora", phone: "5533334444", cedula: "7654321" });
-const sneaky = await signUp({ role: "admin", full_name: "Intruso", phone: "5500000000" });
-const admin = await signUp({ role: "owner", full_name: "Admin", phone: "5599999999" });
+// Alta como lo hace Google OAuth (solo nombre) y luego el registro guiado.
+async function onboard(meta, role, phone, cedula = null) {
+  const id = await signUp(meta);
+  await as(id, () =>
+    db.query("select public.complete_onboarding($1, $2, $3, $4, null)", [role, meta.full_name ?? meta.name, phone, cedula]));
+  return id;
+}
+
+const owner = await onboard({ full_name: "Ana López" }, "owner", "5512345678");
+const other = await onboard({ name: "Beto Ruiz" }, "owner", "5587654321");
+const vet = await onboard({ full_name: "Dra. Carla Díaz" }, "vet", "5511112222", "1234567");
+const vet2 = await onboard({ full_name: "Dr. Diego Mora" }, "vet", "5533334444", "7654321");
+const sneaky = await signUp({ role: "admin", full_name: "Intruso" });
+const admin = await onboard({ full_name: "Admin" }, "owner", "5599999999");
 await db.query("update public.profiles set role = 'admin' where id = $1", [admin]);
 const petId = crypto.randomUUID();
 
 console.log("\nRegistro y perfiles");
-await test("el registro crea perfil y vet_profile pendiente", async () => {
+await test("Google: el nombre llega en full_name o name", async () => {
+  const { rows } = await db.query("select full_name from public.profiles where id = $1", [other]);
+  assert(rows[0].full_name === "Beto Ruiz", rows[0].full_name);
+});
+await test("el registro guiado crea vet_profile pendiente", async () => {
   const { rows } = await db.query("select role from public.profiles where id = $1", [vet]);
   assert(rows[0].role === "vet", "rol incorrecto");
   const v = await db.query("select status from public.vet_profiles where user_id = $1", [vet]);
   assert(v.rows[0].status === "pending", "debería estar pendiente");
 });
-await test("no se puede obtener el rol admin desde el registro", async () => {
-  const { rows } = await db.query("select role from public.profiles where id = $1", [sneaky]);
-  assert(rows[0].role === "owner", `rol: ${rows[0].role}`);
+await test("no se puede obtener el rol admin desde los metadatos", async () => {
+  const { rows } = await db.query("select role, privacy_accepted_at from public.profiles where id = $1", [sneaky]);
+  assert(rows[0].role === "owner" && rows[0].privacy_accepted_at === null, JSON.stringify(rows[0]));
 });
+await test("el registro guiado no acepta admin ni se repite", async () => {
+  await as(sneaky, () => expectError(db.query("select public.complete_onboarding('admin', 'Intruso', '5500000000')"), "no válido"));
+  await as(owner, () => expectError(db.query("select public.complete_onboarding('vet', 'Ana', '5512345678', '1234567')"), "ya está completo"));
+});
+await test("el registro guiado valida la cédula", () =>
+  as(sneaky, () => expectError(db.query("select public.complete_onboarding('vet', 'Intruso Pérez', '5500000000', '12')"), "cédula")));
+await test("anónimo no puede completar un registro", () =>
+  as(null, () => expectError(db.query("select public.complete_onboarding('owner', 'X Y Z', '5500000000')"), "permission denied")));
 await test("el usuario no puede cambiar su propio rol", () =>
   as(owner, () => expectError(db.query("update public.profiles set role = 'admin' where id = $1", [owner]), "permission denied")));
 await test("el usuario sí puede cambiar su teléfono", () =>

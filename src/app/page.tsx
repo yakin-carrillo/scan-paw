@@ -28,8 +28,8 @@ export default function Home() {
           agregar información.
         </p>
         <div className="flex flex-wrap gap-3">
-          <ButtonLink href="/registro">Crear cuenta gratis</ButtonLink>
-          <ButtonLink href="/registro?tipo=vet" variant="secondary">
+          <ButtonLink href="/entrar">Crear cuenta gratis</ButtonLink>
+          <ButtonLink href="/entrar?next=%2Fbienvenida%3Ftipo%3Dvet" variant="secondary">
             Soy médico veterinario
           </ButtonLink>
         </div>

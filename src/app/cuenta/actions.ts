@@ -25,21 +25,6 @@ export async function updateProfile(formData: FormData) {
   redirect("/cuenta?ok=Datos%20actualizados");
 }
 
-export async function updatePassword(formData: FormData) {
-  await requireSession();
-  const password = String(formData.get("password") ?? "");
-  if (password.length < 8) {
-    redirect("/cuenta/contrasena?error=M%C3%ADnimo%208%20caracteres");
-  }
-  if (password !== formData.get("confirm")) {
-    redirect("/cuenta/contrasena?error=Las%20contrase%C3%B1as%20no%20coinciden");
-  }
-  const supabase = await createClient();
-  const { error } = await supabase.auth.updateUser({ password });
-  if (error) redirect(`/cuenta/contrasena?error=${encodeURIComponent(error.message)}`);
-  redirect("/cuenta?ok=Contrase%C3%B1a%20actualizada");
-}
-
 async function removeFolder(admin: ReturnType<typeof createAdminClient>, bucket: string, folder: string) {
   const { data } = await admin.storage.from(bucket).list(folder, { limit: 1000 });
   if (data?.length) await admin.storage.from(bucket).remove(data.map((f) => `${folder}/${f.name}`));

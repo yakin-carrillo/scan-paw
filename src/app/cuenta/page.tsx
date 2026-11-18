@@ -36,9 +36,6 @@ export default async function CuentaPage({ searchParams }: PageProps<"/cuenta">)
           </Field>
           <div className="flex flex-wrap gap-2 sm:col-span-2">
             <Button>Guardar</Button>
-            <ButtonLink href="/cuenta/contrasena" variant="secondary">
-              Cambiar contraseña
-            </ButtonLink>
           </div>
         </form>
       </Card>

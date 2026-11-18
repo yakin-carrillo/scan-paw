@@ -39,14 +39,11 @@ export async function SiteHeader() {
             </>
           ) : (
             <>
-              <Link className="rounded-md px-3 py-2 hover:bg-brand-soft" href="/entrar">
-                Entrar
-              </Link>
               <Link
                 className="rounded-md bg-brand px-3 py-2 font-medium text-white dark:text-black"
-                href="/registro"
+                href="/entrar"
               >
-                Crear cuenta
+                Entrar
               </Link>
             </>
           )}

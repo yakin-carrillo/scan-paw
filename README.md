@@ -56,7 +56,7 @@ Comprobaciones:
 ```powershell
 npm run lint
 npm run typecheck
-npm run test:db    # 33 pruebas de RLS, sin Docker
+npm run test:db    # 37 pruebas de RLS, sin Docker
 npm run build
 ```
 
@@ -77,13 +77,16 @@ npm run build
 3. **Authentication → URL Configuration**
    - Site URL: `https://TU-APP.vercel.app`
    - Redirect URLs: `https://TU-APP.vercel.app/**` y `http://localhost:3000/**`
-4. **Authentication → Email Templates → Confirm signup**: cambia el enlace por
-   ```
-   {{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/mascotas
-   ```
-   En **Reset password** usa `...&type=recovery`. Así el enlace funciona aunque se abra en otro dispositivo.
-5. **Authentication → SMTP Settings**: configura el SMTP de Resend (`smtp.resend.com`, puerto 465, usuario `resend`, contraseña = tu API key). **Es obligatorio**: el correo integrado de Supabase solo envía a los miembros de tu equipo.
-6. **Project Settings → API Keys**: copia la URL, la *publishable key* y la *secret key*.
+4. **Inicio de sesión con Google** (la app no usa contraseñas):
+   1. En <https://console.cloud.google.com> crea un proyecto y, en **APIs y servicios → Pantalla de consentimiento de OAuth**, configúrala como *Externa*. Nombre de la app: Scan-Paw. Permisos: `email`, `profile`, `openid`.
+   2. En **Credenciales → Crear credenciales → ID de cliente de OAuth**, elige *Aplicación web*:
+      - Orígenes autorizados de JavaScript: `https://TU-APP.vercel.app`
+      - URI de redireccionamiento autorizados: `https://TU_PROJECT_REF.supabase.co/auth/v1/callback`
+   3. En Supabase, **Authentication → Sign In / Providers → Google**: actívalo y pega el *Client ID* y el *Client Secret*.
+   4. Mientras la pantalla de consentimiento esté en modo *Prueba*, solo podrán entrar los correos que agregues como usuarios de prueba. Para abrirla a todos, publícala; con los permisos básicos no requiere verificación de Google.
+5. **Project Settings → API Keys**: copia la URL, la *publishable key* y la *secret key*.
+
+Con Google ya no hace falta configurar SMTP en Supabase. Resend solo se usa, de forma opcional, para los avisos de escaneo y de acceso al expediente.
 
 ### 2. Resend
 
@@ -151,7 +154,7 @@ Especificación sugerida: QR de al menos 2.5 × 2.5 cm, corrección de errores Q
 
 ## Estado del Hito 1
 
-- [x] Registro de propietario y de MVZ (cédula en revisión), confirmación por correo, recuperación de contraseña
+- [x] Inicio de sesión con Google y registro guiado (propietario o MVZ con cédula en revisión; teléfono y consentimiento)
 - [x] Mascotas: alta, edición, foto, fallecimiento
 - [x] Expediente: identificación, vacunas, alergias y padecimientos crónicos, anexos; entradas firmadas e inmutables con enmiendas
 - [x] Placas: lotes, CSV, QR en SVG, activación, revocación

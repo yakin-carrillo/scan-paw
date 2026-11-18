@@ -4,9 +4,8 @@ import { safeNext } from "@/lib/forms";
 import { createClient } from "@/lib/supabase/server";
 
 /**
- * Destino de los enlaces de correo (confirmación y recuperación).
- * Acepta ?token_hash=&type= (recomendado: funciona aunque se abra en otro
- * dispositivo) y ?code= (flujo PKCE por defecto).
+ * Destino del inicio de sesión con Google (?code=, flujo PKCE). También acepta
+ * ?token_hash=&type= por si se reactivan los enlaces por correo.
  */
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = request.nextUrl;
@@ -31,6 +30,5 @@ export async function GET(request: NextRequest) {
       `${origin}/entrar?error=${encodeURIComponent("El enlace no es válido o ya venció.")}`,
     );
   }
-  const destination = type === "recovery" ? "/cuenta/contrasena" : next;
-  return NextResponse.redirect(`${origin}${destination}`);
+  return NextResponse.redirect(`${origin}${next}`);
 }
