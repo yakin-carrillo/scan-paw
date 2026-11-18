@@ -241,3 +241,52 @@ export async function revokeTag(petId: string, tagId: string) {
   revalidatePath(`/mascotas/${petId}`);
   back(petId, "placa", { ok: "Placa desactivada. Ya no mostrará datos al escanearse." });
 }
+
+/** Activa o desactiva el modo extraviado con un solo toque. */
+export async function toggleLostMode(petId: string, enable: boolean) {
+  uuid.parse(petId);
+  const supabase = await createClient();
+  const { error } = await supabase.from("pets").update({ lost_mode: enable }).eq("id", petId);
+  if (error) back(petId, "identificacion", { error: friendlyDbError(error.message) });
+  revalidatePath(`/mascotas/${petId}`);
+  revalidatePath("/mascotas");
+  back(petId, "identificacion", {
+    ok: enable
+      ? "Modo extraviado activado. Quien escanee la placa verá el aviso y te avisaremos."
+      : "Modo extraviado desactivado. Qué bueno que volvió a casa.",
+  });
+}
+
+// --------------------------- Citas y membresía ---------------------------
+
+const appointmentStatus = z.enum(["completada", "cancelada"]);
+
+export async function setAppointmentStatus(petId: string, appointmentId: string, status: string) {
+  uuid.parse(petId);
+  uuid.parse(appointmentId);
+  const parsed = appointmentStatus.parse(status);
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_appointment_status", { p_id: appointmentId, p_status: parsed });
+  if (error) back(petId, "identificacion", { error: friendlyDbError(error.message) });
+  revalidatePath(`/mascotas/${petId}`);
+  back(petId, "identificacion", { ok: parsed === "cancelada" ? "Cita cancelada." : "Cita marcada como completada." });
+}
+
+export async function activateMembership(petId: string, plan: string) {
+  uuid.parse(petId);
+  const p = z.enum(["mensual", "anual"]).parse(plan);
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("demo_activate_membership", { p_pet: petId, p_plan: p });
+  if (error) redirect(`/mascotas/${petId}/membresia?error=${encodeURIComponent(friendlyDbError(error.message))}`);
+  revalidatePath(`/mascotas/${petId}`);
+  redirect(`/mascotas/${petId}/membresia?ok=${encodeURIComponent("Membresía activada (modo demostración, sin cobro).")}`);
+}
+
+export async function cancelMembership(petId: string) {
+  uuid.parse(petId);
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("cancel_membership", { p_pet: petId });
+  if (error) redirect(`/mascotas/${petId}/membresia?error=${encodeURIComponent(friendlyDbError(error.message))}`);
+  revalidatePath(`/mascotas/${petId}`);
+  redirect(`/mascotas/${petId}/membresia?ok=${encodeURIComponent("Membresía cancelada. Sigue vigente hasta el fin del periodo.")}`);
+}

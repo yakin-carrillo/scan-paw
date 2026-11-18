@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { Button, ButtonLink, Card, Field, FlashMessages, Input, PageTitle, Select } from "@/components/ui";
+import { PawPrint, ScanLine } from "lucide-react";
+import { BackLink, Button, ButtonLink, Card, EmptyState, Field, FlashMessages, Input, PageTitle, Select } from "@/components/ui";
 import { requireSession } from "@/lib/auth";
 import { friendlyDbError } from "@/lib/forms";
 import { createClient } from "@/lib/supabase/server";
@@ -28,16 +29,17 @@ async function activate(formData: FormData) {
     redirect(`/placas/activar?${qs}`);
   }
   const supabase = await createClient();
-  const { error } = await supabase.rpc("activate_tag", {
+  const { data: ok, error } = await supabase.rpc("activate_tag", {
     p_token: parsed.data.token,
     p_code: parsed.data.code,
     p_pet: parsed.data.pet,
   });
-  if (error) {
-    const qs = new URLSearchParams({ placa: parsed.data.token, error: friendlyDbError(error.message) });
+  if (error || ok === false) {
+    const message = error ? friendlyDbError(error.message) : "Placa o código de activación no válidos.";
+    const qs = new URLSearchParams({ placa: parsed.data.token, error: message });
     redirect(`/placas/activar?${qs}`);
   }
-  redirect(`/mascotas/${parsed.data.pet}?tab=placa&ok=${encodeURIComponent("¡Placa activada!")}`);
+  redirect(`/mascotas/${parsed.data.pet}?tab=placa&ok=${encodeURIComponent("Placa activada. Ya protege a tu mascota.")}`);
 }
 
 export default async function ActivarPlacaPage({ searchParams }: PageProps<"/placas/activar">) {
@@ -57,20 +59,26 @@ export default async function ActivarPlacaPage({ searchParams }: PageProps<"/pla
 
   return (
     <div className="mx-auto max-w-md">
-      <PageTitle title="Activar placa" subtitle="Liga tu placa Scan-Paw con una de tus mascotas." />
+      <BackLink href={preselected ? `/mascotas/${preselected}?tab=placa` : "/mascotas"}>Volver</BackLink>
+      <PageTitle eyebrow="Placa QR" title="Activar placa" subtitle="Liga tu placa Scan-Paw con una de tus mascotas." />
       <FlashMessages error={query.error} />
       {pets.length === 0 ? (
-        <Card className="text-center">
-          <p className="text-sm text-muted">Primero registra a tu mascota.</p>
-          <ButtonLink href="/mascotas/nueva" className="mt-3">
-            Registrar mascota
-          </ButtonLink>
-        </Card>
+        <EmptyState
+          icon={PawPrint}
+          title="Primero registra a tu mascota"
+          text="La placa se liga a un expediente. Crea el de tu mascota y vuelve aquí."
+          action={<ButtonLink href="/mascotas/nueva">Registrar mascota</ButtonLink>}
+        />
       ) : (
         <Card>
           <form action={activate} className="flex flex-col gap-4">
             <Field label="Código de la placa" hint="Aparece impreso debajo del QR.">
-              <Input name="token" required defaultValue={placa} className="font-mono uppercase" autoCapitalize="characters" />
+              <div className="flex gap-2">
+                <Input name="token" required defaultValue={placa} className="font-mono uppercase" autoCapitalize="characters" />
+                <ButtonLink href="/escanear?modo=activar" variant="secondary" aria-label="Escanear la placa con la cámara">
+                  <ScanLine aria-hidden />
+                </ButtonLink>
+              </div>
             </Field>
             <Field label="Código de activación" hint="Viene en la tarjeta del empaque, no en la placa.">
               <Input name="code" required className="font-mono uppercase" autoCapitalize="characters" autoComplete="off" />
@@ -88,7 +96,9 @@ export default async function ActivarPlacaPage({ searchParams }: PageProps<"/pla
               </Select>
             </Field>
             <p className="text-xs text-muted">Si la mascota ya tenía una placa activa, la anterior se desactivará.</p>
-            <Button type="submit">Activar</Button>
+            <Button type="submit" size="lg">
+              Activar placa
+            </Button>
           </form>
         </Card>
       )}

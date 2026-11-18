@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { Camera } from "lucide-react";
 import { registerAttachment, setPetPhoto } from "@/app/mascotas/actions";
 import { createClient } from "@/lib/supabase/client";
 import { Alert, Button, Field, Input, Select } from "@/components/ui";
@@ -51,7 +52,8 @@ export function PhotoUploader({ petId }: { petId: string }) {
 
   return (
     <div className="flex flex-col gap-2">
-      <label className="inline-flex min-h-11 cursor-pointer items-center justify-center rounded-lg border border-border bg-surface px-4 text-sm font-medium hover:bg-brand-soft">
+      <label className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border border-border bg-surface px-4 text-sm font-medium shadow-sm transition hover:border-brand/40 hover:bg-brand-soft print:hidden">
+        <Camera aria-hidden className="size-4" />
         {pending ? "Subiendo…" : "Cambiar foto"}
         <input type="file" accept="image/*" className="sr-only" onChange={onChange} disabled={pending} />
       </label>

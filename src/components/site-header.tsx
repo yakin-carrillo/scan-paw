@@ -1,46 +1,55 @@
 import Link from "next/link";
+import { LogOut } from "lucide-react";
 import { getSession } from "@/lib/auth";
-import { MobileNav, type NavItem } from "./mobile-nav";
+import { Logo } from "./logo";
+import { DesktopNav, MobileNav, type NavItem } from "./mobile-nav";
 
 export async function SiteHeader() {
   const session = await getSession();
   const role = session?.profile.role;
+  const clinician = role === "vet" || role === "student";
 
   const items: NavItem[] = [];
   if (session?.onboarded) {
-    items.push({ href: "/mascotas", label: "Mascotas", icon: "🐾" });
-    if (role === "vet") items.push({ href: "/vet", label: "Pacientes", icon: "🩺" });
-    if (role === "admin") items.push({ href: "/admin", label: "Admin", icon: "🛠️" });
-    items.push({ href: "/cuenta", label: "Cuenta", icon: "👤" });
+    if (clinician) {
+      items.push({ href: "/vet", label: "Pacientes", icon: "pacientes" });
+      items.push({ href: "/vet/agenda", label: "Agenda", icon: "agenda" });
+      items.push({ href: "/escanear", label: "Escanear", icon: "escanear" });
+    } else {
+      items.push({ href: "/mascotas", label: "Mascotas", icon: "mascotas" });
+      items.push({ href: "/escanear", label: "Escanear", icon: "escanear" });
+    }
+    if (role === "admin") items.push({ href: "/admin", label: "Admin", icon: "admin" });
+    items.push({ href: "/cuenta", label: "Cuenta", icon: "cuenta" });
   }
 
   return (
     <>
-      <header className="sticky top-0 z-20 border-b border-border bg-surface/95 pt-[env(safe-area-inset-top)] backdrop-blur">
-        <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 py-3">
-          <Link href="/" className="flex items-center gap-2 text-lg font-semibold">
-            <span aria-hidden className="grid size-8 place-items-center rounded-lg bg-brand text-white dark:text-black">
-              🐾
-            </span>
-            Scan-Paw
+      <header className="sticky top-0 z-20 border-b border-border/70 bg-background/85 pt-[env(safe-area-inset-top)] backdrop-blur-lg print:hidden">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3">
+          <Link href="/" aria-label="Scan-Paw, inicio">
+            <Logo />
           </Link>
-          <nav className="flex items-center gap-1 text-sm">
+          <nav className="flex items-center gap-1">
             {session ? (
               <>
                 {/* En celular la navegación está en la barra inferior. */}
-                <div className="hidden items-center gap-1 sm:flex">
-                  {items.map((item) => (
-                    <Link key={item.href} className="rounded-md px-3 py-2 hover:bg-brand-soft" href={item.href}>
-                      {item.label}
-                    </Link>
-                  ))}
-                </div>
+                <DesktopNav items={items} />
                 <form action="/salir" method="post" className={items.length ? "hidden sm:block" : ""}>
-                  <button className="rounded-md px-3 py-2 text-muted hover:bg-brand-soft">Salir</button>
+                  <button
+                    className="ml-1 inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-muted hover:bg-brand-soft hover:text-foreground"
+                    aria-label="Cerrar sesión"
+                  >
+                    <LogOut aria-hidden className="size-4" />
+                    <span className="hidden md:inline">Salir</span>
+                  </button>
                 </form>
               </>
             ) : (
-              <Link className="rounded-md bg-brand px-3 py-2 font-medium text-white dark:text-black" href="/entrar">
+              <Link
+                className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-brand-ink shadow-sm hover:bg-brand-strong"
+                href="/entrar"
+              >
                 Entrar
               </Link>
             )}

@@ -4,7 +4,9 @@ import { requireSession } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import {
   latestVersions,
+  type Appointment,
   type Attachment,
+  type Membership,
   type Condition,
   type Pet,
   type Tag,
@@ -24,7 +26,7 @@ export async function loadPetRecord(petId: string) {
   const { data: pet } = await supabase.from("pets").select("*").eq("id", petId).maybeSingle<Pet>();
   if (!pet) notFound();
 
-  const [owners, vaccinations, conditions, attachments, tags, access, scans] = await Promise.all([
+  const [owners, vaccinations, conditions, attachments, tags, access, scans, appointments, membership] = await Promise.all([
     supabase
       .from("pet_owners")
       .select("user_id, role, profiles(full_name, phone)")
@@ -35,7 +37,9 @@ export async function loadPetRecord(petId: string) {
     supabase.from("tags").select("*").eq("pet_id", petId).order("created_at", { ascending: false }),
     supabase
       .from("vet_access")
-      .select("id, vet_id, source, granted_at, expires_at, profiles(full_name, vet_profiles!vet_profiles_user_id_fkey(cedula, clinic_name))")
+      .select(
+        "id, vet_id, source, granted_at, expires_at, profiles(full_name, role, vet_profiles!vet_profiles_user_id_fkey(cedula, clinic_name), student_profiles!student_profiles_user_id_fkey(university))",
+      )
       .eq("pet_id", petId)
       .order("granted_at", { ascending: false })
       .limit(50),
@@ -45,6 +49,14 @@ export async function loadPetRecord(petId: string) {
       .eq("pet_id", petId)
       .order("created_at", { ascending: false })
       .limit(20),
+    supabase
+      .from("appointments")
+      .select("*")
+      .eq("pet_id", petId)
+      .gte("scheduled_at", new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString())
+      .order("scheduled_at", { ascending: true })
+      .limit(20),
+    supabase.from("memberships").select("*").eq("pet_id", petId).maybeSingle<Membership>(),
   ]);
 
   type OwnerRow = { user_id: string; role: string; profiles: { full_name: string; phone: string | null } | null };
@@ -54,15 +66,20 @@ export async function loadPetRecord(petId: string) {
   type AccessRow = {
     id: string;
     vet_id: string;
-    source: "escaneo" | "codigo";
+    source: "escaneo" | "codigo" | "cita";
     granted_at: string;
     expires_at: string;
-    profiles: { full_name: string; vet_profiles: { cedula: string; clinic_name: string | null } | null } | null;
+    profiles: {
+      full_name: string;
+      role: string;
+      vet_profiles: { cedula: string; clinic_name: string | null } | null;
+      student_profiles: { university: string } | null;
+    } | null;
   };
   const accessRows = (access.data ?? []) as unknown as AccessRow[];
-  const myAccess = accessRows.find(
-    (a) => a.vet_id === session.userId && new Date(a.expires_at) > new Date(),
-  );
+  const myAccess = accessRows
+    .filter((a) => a.vet_id === session.userId && new Date(a.expires_at) > new Date())
+    .sort((a, b) => b.expires_at.localeCompare(a.expires_at))[0];
 
   let photoUrl: string | null = null;
   if (pet.photo_path) {
@@ -75,7 +92,10 @@ export async function loadPetRecord(petId: string) {
     pet,
     photoUrl,
     isOwner,
-    isVetViewer: !isOwner && session.isVerifiedVet && Boolean(myAccess),
+    isVetViewer: !isOwner && session.isVerifiedClinician && Boolean(myAccess),
+    viewerIsStudent: session.profile.role === "student",
+    appointments: (appointments.data ?? []) as Appointment[],
+    membership: membership.data ?? null,
     myAccessExpires: myAccess?.expires_at ?? null,
     owners: ownerRows,
     vaccinations: latestVersions((vaccinations.data ?? []) as Vaccination[]),
@@ -97,4 +117,13 @@ export function petAge(birthDate: string | null): string | null {
   if (months < 12) return `${months} ${months === 1 ? "mes" : "meses"}`;
   const years = Math.floor(months / 12);
   return `${years} ${years === 1 ? "año" : "años"}`;
+}
+
+/** Estado de una vacuna según su próxima dosis: vigente, por vencer (30 días) o vencida. */
+export function vaccineStatus(nextDue: string | null): "ok" | "soon" | "overdue" {
+  if (!nextDue) return "ok";
+  const today = new Date().toISOString().slice(0, 10);
+  if (nextDue < today) return "overdue";
+  const soon = new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+  return nextDue <= soon ? "soon" : "ok";
 }

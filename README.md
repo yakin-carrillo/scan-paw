@@ -165,5 +165,22 @@ Especificación sugerida: QR de al menos 2.5 × 2.5 cm, corrección de errores Q
 - [x] Pruebas de RLS, CI y respaldo
 - [ ] Prueba técnica: consulta automática de la cédula en la SEP (hoy la revisión es manual)
 - [ ] Copropietarios y transferencia de mascota
-- [ ] Exportar expediente a PDF
 - [ ] Aviso de privacidad definitivo (revisión legal)
+
+## Preparación de la demo (Hito 2 parcial)
+
+- [x] Rediseño visual "clínica cálida": paleta verde azulado y durazno, tipografía Bricolage Grotesque, íconos Lucide (sin emojis)
+- [x] Escáner QR dentro de la app (`/escanear`): BarcodeDetector en Android, jsQR en iPhone, captura manual del código
+- [x] Resumen clínico imprimible / PDF (`/mascotas/[id]/resumen`) y cartel "Se busca" (`/mascotas/[id]/cartel`)
+- [x] Modo extraviado con un toque desde el expediente; página pública con aviso destacado
+- [x] Cuenta de estudiante con matrícula, verificación del admin y marca "No profesionista" en cada entrada
+- [x] Portal de clínica: agenda de citas (`/vet/agenda`), vacunas por vencer de los pacientes, "Preparar consulta"
+- [x] Al agendar una cita, el acceso del clínico se extiende hasta el día siguiente a la cita (el dueño recibe aviso)
+- [x] Membresía por mascota en modo demostración (sin cobro); precios de referencia en `src/lib/plans.ts`
+- [x] Recordatorios por correo de vacunas (7 días antes) y citas (36 h antes) desde el cron diario
+- [x] Límite de 10 intentos fallidos por hora al activar placas y canjear códigos
+- [x] Datos de demostración desde `/admin` (Luna y Michi, una placa activa y otra para activar en vivo)
+- [x] Vercel Web Analytics y prueba de humo `npm run test:smoke`
+
+La verificación de cédulas sigue siendo manual: la consulta de la SEP no ofrece una API pública estable y
+automatizarla implicaría saltar sus controles anti-robots.

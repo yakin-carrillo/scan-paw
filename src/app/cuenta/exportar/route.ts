@@ -11,12 +11,14 @@ export async function GET() {
   const { data: owned } = await supabase.from("pet_owners").select("pet_id").eq("user_id", session.userId);
   const ids = (owned ?? []).map((o) => o.pet_id);
 
-  const [pets, vaccinations, conditions, attachments, access] = await Promise.all([
+  const [pets, vaccinations, conditions, attachments, access, appointments, memberships] = await Promise.all([
     supabase.from("pets").select("*").in("id", ids),
     supabase.from("vaccinations").select("*").in("pet_id", ids),
     supabase.from("conditions").select("*").in("pet_id", ids),
     supabase.from("attachments").select("id, pet_id, kind, title, mime_type, size_bytes, notes, source, author_name, author_cedula, created_at").in("pet_id", ids),
     supabase.from("vet_access").select("pet_id, source, granted_at, expires_at").in("pet_id", ids),
+    supabase.from("appointments").select("pet_id, scheduled_at, reason, status, clinician_name, clinic_name").in("pet_id", ids),
+    supabase.from("memberships").select("*").in("pet_id", ids),
   ]);
 
   const body = {
@@ -27,6 +29,8 @@ export async function GET() {
     conditions: conditions.data ?? [],
     attachments: attachments.data ?? [],
     vet_access: access.data ?? [],
+    appointments: appointments.data ?? [],
+    memberships: memberships.data ?? [],
   };
 
   return new NextResponse(JSON.stringify(body, null, 2), {

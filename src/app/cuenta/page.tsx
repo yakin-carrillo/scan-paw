@@ -10,11 +10,11 @@ const roleLabel = { owner: "Propietario", vet: "Médico veterinario", student: "
 export default async function CuentaPage({ searchParams }: PageProps<"/cuenta">) {
   const session = await requireSession("/cuenta");
   const query = await searchParams;
-  const { profile, vet } = session;
+  const { profile, vet, student } = session;
 
   return (
-    <div className="flex flex-col gap-5">
-      <PageTitle title="Mi cuenta" subtitle={session.email ?? undefined} />
+    <div className="mx-auto flex max-w-2xl flex-col gap-5">
+      <PageTitle eyebrow="Cuenta" title={profile.full_name || "Mi cuenta"} subtitle={session.email ?? undefined} />
       <FlashMessages error={query.error} ok={query.ok} />
 
       <Card>
@@ -24,6 +24,11 @@ export default async function CuentaPage({ searchParams }: PageProps<"/cuenta">)
             <Badge tone={vet.status === "approved" ? "brand" : vet.status === "rejected" ? "danger" : "warning"}>
               Cédula {vet.cedula}:{" "}
               {vet.status === "approved" ? "verificada" : vet.status === "rejected" ? "rechazada" : "en revisión"}
+            </Badge>
+          )}
+          {student && (
+            <Badge tone={student.status === "approved" ? "warning" : student.status === "rejected" ? "danger" : "neutral"}>
+              {student.university} · {student.status === "approved" ? "verificado, No profesionista" : student.status === "rejected" ? "rechazado" : "en revisión"}
             </Badge>
           )}
         </div>

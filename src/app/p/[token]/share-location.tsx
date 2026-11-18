@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { MapPin } from "lucide-react";
 import { Alert, Button } from "@/components/ui";
 import { shareFinderLocation } from "./actions";
 
@@ -23,14 +24,15 @@ export function ShareLocationButton({ token }: { token: string }) {
     );
   }
 
-  if (state === "done") return <Alert tone="success">¡Gracias! Enviamos tu ubicación al dueño.</Alert>;
+  if (state === "done") return <Alert tone="success">Gracias. Enviamos tu ubicación a su familia.</Alert>;
   return (
     <div className="flex flex-col gap-2">
-      <Button variant="secondary" onClick={share} disabled={state === "loading"}>
-        {state === "loading" ? "Obteniendo ubicación…" : "📍 Enviar mi ubicación al dueño"}
+      <Button variant="secondary" size="lg" className="w-full" onClick={share} disabled={state === "loading"}>
+        <MapPin aria-hidden />
+        {state === "loading" ? "Obteniendo ubicación…" : "Enviar mi ubicación a su familia"}
       </Button>
       {state === "error" && <Alert tone="error">No se pudo obtener la ubicación.</Alert>}
-      <p className="text-xs text-muted">Solo se envía si tocas el botón, y únicamente la ve el dueño.</p>
+      <p className="text-xs text-muted">Solo se envía si tocas el botón, y únicamente la ve su familia.</p>
     </div>
   );
 }

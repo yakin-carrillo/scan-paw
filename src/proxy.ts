@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PROTECTED_PREFIXES = ["/mascotas", "/vet", "/admin", "/cuenta", "/placas"];
+const PROTECTED_PREFIXES = ["/mascotas", "/vet", "/admin", "/cuenta", "/placas", "/escanear"];
 
 /**
  * Refresca la sesión de Supabase en cada solicitud y redirige a /entrar

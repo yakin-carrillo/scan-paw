@@ -26,11 +26,13 @@ export async function signInWithGoogle(formData: FormData) {
 
 const onboardingSchema = z
   .object({
-    tipo: z.enum(["owner", "vet"]),
+    tipo: z.enum(["owner", "vet", "student"]),
     full_name: z.string().trim().min(3, "Escribe tu nombre completo.").max(120),
     phone: phoneSchema,
     cedula: optionalText(8),
     clinic_name: optionalText(120),
+    university: optionalText(120),
+    enrollment_id: optionalText(20),
     privacy: z.literal("on", { error: "Debes aceptar el aviso de privacidad." }),
     next: z.string().optional(),
   })
@@ -38,14 +40,23 @@ const onboardingSchema = z
     if (d.tipo === "vet" && !cedulaSchema.safeParse(d.cedula ?? "").success) {
       ctx.addIssue({ code: "custom", message: "La cédula profesional tiene 7 u 8 dígitos.", path: ["cedula"] });
     }
+    if (d.tipo === "student") {
+      if (!d.university || d.university.length < 3) {
+        ctx.addIssue({ code: "custom", message: "Escribe el nombre de tu universidad.", path: ["university"] });
+      }
+      if (!/^[0-9A-Za-z-]{4,20}$/.test(d.enrollment_id ?? "")) {
+        ctx.addIssue({ code: "custom", message: "La matrícula tiene de 4 a 20 letras o números.", path: ["enrollment_id"] });
+      }
+    }
   });
 
-/** Registro guiado: tipo de cuenta, teléfono, cédula (MVZ) y consentimiento. */
+/** Registro guiado: tipo de cuenta, teléfono, cédula o matrícula y consentimiento. */
 export async function completeOnboarding(formData: FormData) {
   const session = await getSession();
   if (!session) redirect("/entrar");
 
-  const tipo = formData.get("tipo") === "vet" ? "vet" : "owner";
+  const raw = formData.get("tipo");
+  const tipo = raw === "vet" || raw === "student" ? raw : "owner";
   const parsed = onboardingSchema.safeParse(formObject(formData));
   if (!parsed.success) {
     redirect(`/bienvenida?tipo=${tipo}&error=${encodeURIComponent(firstError(parsed.error))}`);
@@ -59,9 +70,11 @@ export async function completeOnboarding(formData: FormData) {
     p_phone: d.phone.replace(/\s/g, ""),
     p_cedula: d.tipo === "vet" ? d.cedula : null,
     p_clinic: d.tipo === "vet" ? (d.clinic_name ?? null) : null,
+    p_university: d.tipo === "student" ? d.university : null,
+    p_enrollment: d.tipo === "student" ? d.enrollment_id : null,
   });
   if (error) {
     redirect(`/bienvenida?tipo=${tipo}&error=${encodeURIComponent(friendlyDbError(error.message))}`);
   }
-  redirect(d.tipo === "vet" ? "/vet" : safeNext(d.next));
+  redirect(d.tipo === "owner" ? safeNext(d.next) : "/vet");
 }

@@ -1,7 +1,8 @@
+import { BadgeCheck, GraduationCap, User } from "lucide-react";
 import { Badge, formatDate } from "@/components/ui";
 import type { RecordSource } from "@/lib/types";
 
-/** Firma visible de cada entrada: quién la registró y si está verificada. */
+/** Firma visible de cada entrada: quién la registró y con qué respaldo. */
 export function EntryAuthor({
   source,
   authorName,
@@ -14,11 +15,19 @@ export function EntryAuthor({
   createdAt: string;
 }) {
   return (
-    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted">
+    <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3 text-xs text-muted">
       {source === "vet" ? (
-        <Badge tone="brand">✓ Verificado por MVZ</Badge>
+        <Badge tone="brand">
+          <BadgeCheck aria-hidden /> Registrado por MVZ
+        </Badge>
+      ) : source === "estudiante" ? (
+        <Badge tone="warning">
+          <GraduationCap aria-hidden /> Estudiante · No profesionista
+        </Badge>
       ) : (
-        <Badge tone="warning">Registrado por el propietario · no verificado</Badge>
+        <Badge>
+          <User aria-hidden /> Propietario · sin verificar
+        </Badge>
       )}
       <span>
         {authorName ?? "Usuario eliminado"}

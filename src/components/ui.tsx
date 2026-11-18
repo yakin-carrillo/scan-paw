@@ -1,63 +1,45 @@
 import Link from "next/link";
 import type { ComponentProps, ReactNode } from "react";
+import { ArrowLeft, Cat, CircleCheck, Dog, Info, TriangleAlert, type LucideIcon } from "lucide-react";
 
-const cx = (...parts: (string | false | null | undefined)[]) => parts.filter(Boolean).join(" ");
+export const cx = (...parts: (string | false | null | undefined)[]) => parts.filter(Boolean).join(" ");
 
 const buttonStyles = {
-  primary: "bg-brand text-white hover:bg-brand-strong dark:text-black",
-  secondary: "border border-border bg-surface hover:bg-brand-soft",
-  danger: "bg-danger text-white hover:opacity-90",
-  ghost: "hover:bg-brand-soft",
+  primary: "bg-brand text-brand-ink shadow-sm hover:bg-brand-strong",
+  secondary: "border border-border bg-surface text-foreground hover:border-brand/40 hover:bg-brand-soft",
+  accent: "bg-accent text-white shadow-sm hover:brightness-95 dark:text-black",
+  danger: "bg-danger text-white shadow-sm hover:brightness-95 dark:text-black",
+  ghost: "text-foreground hover:bg-brand-soft",
 };
 
 type Variant = keyof typeof buttonStyles;
+const sizes = { md: "min-h-11 px-4 text-sm", lg: "min-h-13 px-5 text-base" };
+
+const buttonBase =
+  "inline-flex items-center justify-center gap-2 rounded-xl font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-[1.15em] [&_svg]:shrink-0";
 
 export function Button({
   variant = "primary",
+  size = "md",
   className,
   ...props
-}: ComponentProps<"button"> & { variant?: Variant }) {
-  return (
-    <button
-      className={cx(
-        "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 text-sm font-medium transition disabled:opacity-50",
-        buttonStyles[variant],
-        className,
-      )}
-      {...props}
-    />
-  );
+}: ComponentProps<"button"> & { variant?: Variant; size?: keyof typeof sizes }) {
+  return <button className={cx(buttonBase, sizes[size], buttonStyles[variant], className)} {...props} />;
 }
 
 export function ButtonLink({
   variant = "primary",
+  size = "md",
   className,
   ...props
-}: ComponentProps<typeof Link> & { variant?: Variant }) {
-  return (
-    <Link
-      className={cx(
-        "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 text-sm font-medium transition",
-        buttonStyles[variant],
-        className,
-      )}
-      {...props}
-    />
-  );
+}: ComponentProps<typeof Link> & { variant?: Variant; size?: keyof typeof sizes }) {
+  return <Link className={cx(buttonBase, sizes[size], buttonStyles[variant], className)} {...props} />;
 }
 
 const inputClass =
-  "w-full rounded-lg border border-border bg-surface px-3 py-2.5 outline-none focus:border-brand focus:ring-2 focus:ring-brand/20";
+  "w-full rounded-xl border border-border bg-surface px-3.5 py-2.5 outline-none transition placeholder:text-muted/70 focus:border-brand focus:ring-4 focus:ring-brand/15";
 
-export function Field({
-  label,
-  hint,
-  children,
-}: {
-  label: string;
-  hint?: string;
-  children: ReactNode;
-}) {
+export function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
     <label className="flex flex-col gap-1.5 text-sm">
       <span className="font-medium">{label}</span>
@@ -82,60 +64,176 @@ export function Textarea(props: ComponentProps<"textarea">) {
 export function Card({ className, ...props }: ComponentProps<"section">) {
   return (
     <section
-      className={cx("rounded-xl border border-border bg-surface p-5 shadow-sm", className)}
+      className={cx("rounded-2xl border border-border bg-surface p-5 shadow-card sm:p-6", className)}
       {...props}
     />
   );
 }
 
+/** Encabezado de tarjeta con ícono en pastilla. */
+export function CardTitle({ icon: Icon, title, subtitle, tone = "brand" }: {
+  icon?: LucideIcon;
+  title: string;
+  subtitle?: ReactNode;
+  tone?: "brand" | "accent" | "danger";
+}) {
+  const tones = { brand: "bg-brand-soft text-brand", accent: "bg-accent-soft text-accent", danger: "bg-danger-soft text-danger" };
+  return (
+    <div className="mb-4 flex items-start gap-3">
+      {Icon && (
+        <span className={cx("grid size-10 shrink-0 place-items-center rounded-xl", tones[tone])}>
+          <Icon aria-hidden className="size-5" />
+        </span>
+      )}
+      <div className="min-w-0">
+        <h2 className="text-lg font-semibold leading-tight">{title}</h2>
+        {subtitle && <p className="mt-0.5 text-sm text-muted">{subtitle}</p>}
+      </div>
+    </div>
+  );
+}
+
 export function Alert({
   tone = "info",
+  title,
   children,
 }: {
   tone?: "info" | "error" | "warning" | "success";
+  title?: string;
   children: ReactNode;
 }) {
   const tones = {
-    info: "bg-brand-soft text-foreground",
-    success: "bg-brand-soft text-brand-strong",
-    error: "bg-danger-soft text-danger",
-    warning: "bg-warning-soft text-warning",
-  };
+    info: ["border-brand/20 bg-brand-soft text-foreground", Info],
+    success: ["border-brand/25 bg-brand-soft text-brand-strong", CircleCheck],
+    error: ["border-danger/25 bg-danger-soft text-danger", TriangleAlert],
+    warning: ["border-warning/25 bg-warning-soft text-warning", TriangleAlert],
+  } as const;
+  const [style, Icon] = tones[tone];
   return (
-    <div role={tone === "error" ? "alert" : "status"} className={cx("rounded-lg px-4 py-3 text-sm", tones[tone])}>
-      {children}
+    <div
+      role={tone === "error" ? "alert" : "status"}
+      className={cx("flex gap-3 rounded-xl border px-4 py-3 text-sm", style)}
+    >
+      <Icon aria-hidden className="mt-0.5 size-4 shrink-0" />
+      <div className="min-w-0">
+        {title && <p className="font-semibold">{title}</p>}
+        {children}
+      </div>
     </div>
   );
 }
 
 export function Badge({
   tone = "neutral",
+  className,
   children,
 }: {
-  tone?: "neutral" | "brand" | "warning" | "danger";
+  tone?: "neutral" | "brand" | "accent" | "warning" | "danger";
+  className?: string;
   children: ReactNode;
 }) {
   const tones = {
-    neutral: "bg-background text-muted border border-border",
+    neutral: "bg-surface-2 text-muted border border-border",
     brand: "bg-brand-soft text-brand-strong",
+    accent: "bg-accent-soft text-accent",
     warning: "bg-warning-soft text-warning",
     danger: "bg-danger-soft text-danger",
   };
   return (
-    <span className={cx("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium", tones[tone])}>
+    <span
+      className={cx(
+        "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium [&_svg]:size-3.5",
+        tones[tone],
+        className,
+      )}
+    >
       {children}
     </span>
   );
 }
 
-export function PageTitle({ title, subtitle, actions }: { title: string; subtitle?: string; actions?: ReactNode }) {
+export function BackLink({ href, children }: { href: string; children: ReactNode }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-        {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
+    <Link
+      href={href}
+      className="mb-4 inline-flex items-center gap-1.5 rounded-lg py-1 text-sm text-muted transition hover:text-foreground print:hidden"
+    >
+      <ArrowLeft aria-hidden className="size-4" />
+      {children}
+    </Link>
+  );
+}
+
+export function PageTitle({
+  title,
+  subtitle,
+  eyebrow,
+  actions,
+}: {
+  title: string;
+  subtitle?: ReactNode;
+  eyebrow?: string;
+  actions?: ReactNode;
+}) {
+  return (
+    <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+      <div className="min-w-0">
+        {eyebrow && <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-accent">{eyebrow}</p>}
+        <h1 className="text-[1.75rem] font-semibold leading-tight sm:text-3xl">{title}</h1>
+        {subtitle && <p className="mt-1.5 text-sm text-muted">{subtitle}</p>}
       </div>
-      {actions}
+      {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
+    </div>
+  );
+}
+
+export function EmptyState({
+  icon: Icon,
+  title,
+  text,
+  action,
+}: {
+  icon: LucideIcon;
+  title: string;
+  text?: ReactNode;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col items-center rounded-2xl border border-dashed border-border bg-surface-2 px-6 py-10 text-center">
+      <span className="grid size-14 place-items-center rounded-2xl bg-brand-soft text-brand">
+        <Icon aria-hidden className="size-7" />
+      </span>
+      <h2 className="mt-4 text-lg font-semibold">{title}</h2>
+      {text && <p className="mt-1 max-w-sm text-sm text-muted">{text}</p>}
+      {action && <div className="mt-5">{action}</div>}
+    </div>
+  );
+}
+
+/** Foto de la mascota o, si no hay, su silueta según la especie. */
+export function PetAvatar({
+  species,
+  photoUrl,
+  name,
+  size = "md",
+}: {
+  species: "perro" | "gato" | null;
+  photoUrl?: string | null;
+  name: string;
+  size?: "sm" | "md" | "lg" | "xl";
+}) {
+  const dims = { sm: "size-12 rounded-xl", md: "size-16 rounded-2xl", lg: "size-24 rounded-3xl", xl: "size-36 rounded-[2rem]" };
+  if (photoUrl) {
+    // eslint-disable-next-line @next/next/no-img-element -- URL firmada temporal de Storage
+    return <img src={photoUrl} alt={`Foto de ${name}`} className={cx(dims[size], "shrink-0 object-cover shadow-card")} />;
+  }
+  const Icon = species === "gato" ? Cat : Dog;
+  return (
+    <div
+      aria-hidden
+      className={cx(dims[size], "grid shrink-0 place-items-center bg-gradient-to-br from-brand-soft to-accent-soft text-brand")}
+    >
+      <Icon className="size-1/2" strokeWidth={1.6} />
     </div>
   );
 }
@@ -165,4 +263,8 @@ export function formatDateTime(value: string): string {
     timeStyle: "short",
     timeZone: "America/Mexico_City",
   });
+}
+
+export function speciesLabel(species: string | null | undefined): string {
+  return species === "gato" ? "Gato" : "Perro";
 }

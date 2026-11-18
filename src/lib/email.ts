@@ -43,3 +43,12 @@ export function escapeHtml(value: string): string {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
 }
+
+/** "(cédula 1234567)" o "(estudiante de UNAM, No profesionista)", ya escapado. */
+export function clinicianCredential(session: {
+  vet: { cedula: string } | null;
+  student: { university: string } | null;
+}): string {
+  if (session.student) return `(estudiante de ${escapeHtml(session.student.university)}, No profesionista)`;
+  return `(cédula ${escapeHtml(session.vet?.cedula ?? "")})`;
+}

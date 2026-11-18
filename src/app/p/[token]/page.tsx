@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
-import { Alert, Button, ButtonLink, Card, FlashMessages } from "@/components/ui";
+import { BadgeCheck, GraduationCap, Lock, MessageCircle, Phone, QrCode, Siren, Stethoscope } from "lucide-react";
+import { PawMark } from "@/components/logo";
+import { Alert, Button, ButtonLink, Card, FlashMessages, PetAvatar } from "@/components/ui";
 import { getSession } from "@/lib/auth";
 import { escapeHtml, ownerEmails, sendEmail } from "@/lib/email";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -48,6 +50,24 @@ async function recordPublicScan(token: string, petName: string, lostMode: boolea
   }
 }
 
+function Notice({ icon: Icon, title, text, children }: {
+  icon: typeof QrCode;
+  title: string;
+  text: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <Card className="mx-auto flex max-w-md flex-col items-center gap-3 text-center">
+      <span className="grid size-14 place-items-center rounded-2xl bg-brand-soft text-brand">
+        <Icon aria-hidden className="size-7" />
+      </span>
+      <h1 className="text-2xl font-semibold">{title}</h1>
+      <p className="text-sm text-muted">{text}</p>
+      {children}
+    </Card>
+  );
+}
+
 export default async function PublicTagPage({ params, searchParams }: PageProps<"/p/[token]">) {
   const { token: rawToken } = await params;
   const query = await searchParams;
@@ -59,36 +79,24 @@ export default async function PublicTagPage({ params, searchParams }: PageProps<
   const info = (data as PublicPet[] | null)?.[0];
 
   if (!info) {
-    return (
-      <Card className="mx-auto max-w-md text-center">
-        <h1 className="text-xl font-semibold">Placa no encontrada</h1>
-        <p className="mt-2 text-sm text-muted">Revisa que el código esté bien escrito.</p>
-      </Card>
-    );
+    return <Notice icon={QrCode} title="Placa no encontrada" text="Revisa que el código esté bien escrito." />;
   }
 
   if (info.tag_status === "sin_asignar") {
     return (
-      <Card className="mx-auto flex max-w-md flex-col gap-3 text-center">
-        <h1 className="text-xl font-semibold">Placa nueva sin activar</h1>
-        <p className="text-sm text-muted">
-          Si esta placa es tuya, actívala con el código que viene en su empaque.
-        </p>
-        <ButtonLink href={`/placas/activar?placa=${token}`}>Activar placa</ButtonLink>
-      </Card>
+      <Notice icon={QrCode} title="Placa nueva sin activar" text="Si esta placa es tuya, actívala con el código que viene en su empaque.">
+        <ButtonLink href={`/placas/activar?placa=${token}`} size="lg" className="w-full">
+          Activar placa
+        </ButtonLink>
+      </Notice>
     );
   }
 
   if (info.tag_status === "revocada" || !info.pet_name || info.pet_status === "fallecido") {
-    return (
-      <Card className="mx-auto max-w-md text-center">
-        <h1 className="text-xl font-semibold">Placa inactiva</h1>
-        <p className="mt-2 text-sm text-muted">Esta placa ya no está en uso.</p>
-      </Card>
-    );
+    return <Notice icon={QrCode} title="Placa inactiva" text="Esta placa ya no está en uso." />;
   }
 
-  // No registrar escaneos del propio dueño ni de MVZ (estos se registran al abrir el expediente).
+  // No registrar escaneos de usuarios con sesión (los clínicos se registran al abrir el expediente).
   if (!session) await recordPublicScan(token, info.pet_name, info.lost_mode);
 
   let photoUrl: string | null = null;
@@ -99,68 +107,102 @@ export default async function PublicTagPage({ params, searchParams }: PageProps<
     photoUrl = signed?.signedUrl ?? null;
   }
 
+  const clinician = session?.profile.role === "vet" || session?.profile.role === "student";
+  const isStudent = session?.profile.role === "student";
+
   return (
     <div className="mx-auto flex max-w-md flex-col gap-4">
       <FlashMessages error={query.error} />
       {info.lost_mode && (
-        <div className="rounded-xl bg-danger p-4 text-white">
-          <p className="text-lg font-semibold">¡{info.pet_name} está extraviado!</p>
-          <p className="mt-1 text-sm">Por favor contacta a su familia. Gracias por ayudar.</p>
-          {info.lost_message && <p className="mt-2 rounded-lg bg-white/15 p-3 text-sm">{info.lost_message}</p>}
+        <div role="alert" className="overflow-hidden rounded-3xl bg-danger text-white shadow-lift">
+          <div className="flex items-center gap-3 px-5 pt-5">
+            <span className="grid size-11 place-items-center rounded-2xl bg-white/20">
+              <Siren aria-hidden className="size-6" />
+            </span>
+            <div>
+              <p className="text-xs font-semibold tracking-wider uppercase opacity-90">Mascota extraviada</p>
+              <p className="font-display text-2xl font-semibold">{info.pet_name} se perdió</p>
+            </div>
+          </div>
+          <p className="px-5 pt-3 pb-5 text-sm">Su familia la está buscando. Contáctala por favor; gracias por ayudar.</p>
+          {info.lost_message && <p className="bg-black/15 px-5 py-4 text-sm">{info.lost_message}</p>}
         </div>
       )}
-      <Card className="flex flex-col items-center gap-3 text-center">
-        {photoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element -- URL firmada temporal
-          <img src={photoUrl} alt={`Foto de ${info.pet_name}`} className="size-40 rounded-2xl object-cover" />
-        ) : (
-          <div aria-hidden className="grid size-24 place-items-center rounded-2xl bg-brand-soft text-5xl">
-            {info.species === "gato" ? "🐱" : "🐶"}
-          </div>
-        )}
-        <h1 className="text-2xl font-semibold">Hola, soy {info.pet_name}</h1>
-        {info.owner_first_name && <p className="text-muted">Mi familia: {info.owner_first_name}</p>}
+
+      <Card className="flex flex-col items-center gap-4 text-center">
+        <PetAvatar species={info.species} name={info.pet_name} photoUrl={photoUrl} size="xl" />
+        <div>
+          <h1 className="text-3xl font-semibold">Hola, soy {info.pet_name}</h1>
+          {info.owner_first_name && <p className="mt-1 text-muted">Mi familia: {info.owner_first_name}</p>}
+        </div>
         {info.contact_phone ? (
-          <div className="grid w-full gap-2 sm:grid-cols-2">
-            <ButtonLink href={`tel:${info.contact_phone}`}>📞 Llamar</ButtonLink>
+          <div className="grid w-full gap-2">
+            <ButtonLink href={`tel:${info.contact_phone}`} size="lg" variant={info.lost_mode ? "danger" : "primary"}>
+              <Phone aria-hidden /> Llamar a su familia
+            </ButtonLink>
             <ButtonLink
               variant="secondary"
+              size="lg"
               href={`https://wa.me/${whatsappNumber(info.contact_phone)}?text=${encodeURIComponent(
                 `Hola, encontré a ${info.pet_name} (escaneé su placa Scan-Paw).`,
               )}`}
               target="_blank"
             >
-              💬 WhatsApp
+              <MessageCircle aria-hidden /> Enviar WhatsApp
             </ButtonLink>
           </div>
         ) : (
-          <p className="text-sm text-muted">El dueño decidió no mostrar su teléfono.</p>
+          <p className="text-sm text-muted">La familia decidió no mostrar su teléfono. Comparte tu ubicación para avisarle.</p>
         )}
-        <ShareLocationButton token={token} />
+        <div className="w-full">
+          <ShareLocationButton token={token} />
+        </div>
       </Card>
 
       <Card className="text-sm">
-        <h2 className="font-semibold">¿Eres médico veterinario?</h2>
-        {session?.isVerifiedVet ? (
-          <form action={vetOpenRecord.bind(null, token)} className="mt-3 flex flex-col gap-2">
-            <p className="text-muted">
-              Abrirás el expediente completo por 7 días. El acceso queda registrado y se avisa al dueño.
-            </p>
-            <Button>Abrir expediente clínico</Button>
-          </form>
-        ) : session?.profile.role === "vet" ? (
-          <Alert tone="warning">Tu cédula aún está en revisión. Podrás abrir expedientes cuando se apruebe.</Alert>
-        ) : session ? (
-          <p className="mt-2 text-muted">El historial clínico solo está disponible para MVZ verificados.</p>
-        ) : (
-          <p className="mt-2 text-muted">
-            <a href={`/entrar?next=/p/${token}`} className="underline">
-              Inicia sesión
-            </a>{" "}
-            con tu cuenta verificada para ver el historial clínico.
-          </p>
-        )}
+        <div className="flex items-start gap-3">
+          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand-soft text-brand">
+            <Stethoscope aria-hidden className="size-5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-base font-semibold">¿Eres médico veterinario?</h2>
+            {session?.isVerifiedClinician ? (
+              <form action={vetOpenRecord.bind(null, token)} className="mt-2 flex flex-col gap-3">
+                <p className="text-muted">
+                  Abrirás el expediente completo por 7 días. El acceso queda registrado y se avisa al propietario.
+                </p>
+                {isStudent && (
+                  <Alert tone="warning">
+                    Entras como estudiante. Lo que registres se marcará como No profesionista.
+                  </Alert>
+                )}
+                <Button size="lg">
+                  {isStudent ? <GraduationCap aria-hidden /> : <BadgeCheck aria-hidden />} Abrir expediente clínico
+                </Button>
+              </form>
+            ) : clinician ? (
+              <div className="mt-2">
+                <Alert tone="warning">
+                  Tu cuenta aún está en revisión. Podrás abrir expedientes cuando se apruebe.
+                </Alert>
+              </div>
+            ) : session ? (
+              <p className="mt-1 text-muted">El historial clínico solo está disponible para MVZ verificados.</p>
+            ) : (
+              <p className="mt-1 text-muted">
+                <a href={`/entrar?next=/p/${token}`} className="font-medium text-brand underline">
+                  Inicia sesión
+                </a>{" "}
+                con tu cuenta verificada para ver el historial clínico.
+              </p>
+            )}
+          </div>
+        </div>
       </Card>
+
+      <p className="flex items-center justify-center gap-1.5 text-xs text-muted">
+        <Lock aria-hidden className="size-3.5" /> Protegido por <PawMark className="size-3.5 text-brand" /> Scan-Paw
+      </p>
     </div>
   );
 }

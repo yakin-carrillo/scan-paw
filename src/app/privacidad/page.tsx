@@ -5,8 +5,8 @@ export const metadata = { title: "Aviso de privacidad" };
 // BORRADOR: debe revisarlo un asesor legal antes de operar con usuarios reales.
 export default function PrivacidadPage() {
   return (
-    <>
-      <PageTitle title="Aviso de privacidad" subtitle="Versión preliminar · noviembre 2026" />
+    <div className="mx-auto max-w-3xl">
+      <PageTitle eyebrow="Legal" title="Aviso de privacidad" subtitle="Versión preliminar · noviembre 2026" />
       <div className="mb-4">
         <Alert tone="warning">
           Borrador para el proyecto académico. Debe completarse con los datos del responsable y revisarse con un asesor
@@ -23,7 +23,7 @@ export default function PrivacidadPage() {
           <p>
             Identificación y contacto del propietario (nombre, correo electrónico, teléfono); datos de identificación de
             sus mascotas; información clínica veterinaria (vacunas, alergias, padecimientos, estudios y recetas); para
-            médicos veterinarios, número de cédula profesional y clínica; registros de acceso y, solo si quien escanea
+            médicos veterinarios, número de cédula profesional y clínica; para estudiantes, universidad y matrícula; citas agendadas; registros de acceso y, solo si quien escanea
             una placa lo autoriza, su ubicación aproximada.
           </p>
         </section>
@@ -32,7 +32,8 @@ export default function PrivacidadPage() {
           <ul className="list-disc pl-5">
             <li>Mantener el historial clínico de la mascota y compartirlo con médicos veterinarios verificados.</li>
             <li>Permitir que quien encuentre una mascota extraviada contacte a su propietario.</li>
-            <li>Verificar la cédula profesional de los médicos veterinarios.</li>
+            <li>Verificar la cédula profesional de los médicos veterinarios y la matrícula de los estudiantes.</li>
+            <li>Enviar recordatorios de vacunas y citas.</li>
             <li>Enviar avisos de seguridad (escaneos, accesos al expediente).</li>
           </ul>
         </section>
@@ -41,8 +42,9 @@ export default function PrivacidadPage() {
           <p>
             Quien escanee la placa solo ve el nombre de la mascota, el nombre de pila del propietario y, si así lo
             decide el propietario, su teléfono y la foto de la mascota. El expediente clínico solo lo ven el propietario
-            y los médicos veterinarios con cédula verificada que escanean la placa o reciben un código del propietario,
-            por 7 días. Utilizamos proveedores de infraestructura (Supabase, Vercel, Resend) que tratan los datos por
+            y los médicos veterinarios o estudiantes verificados que escanean la placa o reciben un código del
+            propietario, por 7 días (o hasta el día siguiente de una cita agendada). Las entradas de estudiantes se marcan
+            como &quot;No profesionista&quot;. Utilizamos proveedores de infraestructura (Supabase, Vercel, Resend) que tratan los datos por
             cuenta nuestra.
           </p>
         </section>
@@ -59,6 +61,6 @@ export default function PrivacidadPage() {
           <p>Cualquier cambio a este aviso se publicará en esta página.</p>
         </section>
       </Card>
-    </>
+    </div>
   );
 }

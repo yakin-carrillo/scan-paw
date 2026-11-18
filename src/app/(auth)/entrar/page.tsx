@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Card, FlashMessages, PageTitle } from "@/components/ui";
+import { Lock, ShieldCheck, Stethoscope } from "lucide-react";
+import { PawMark } from "@/components/logo";
+import { Card, FlashMessages } from "@/components/ui";
 import { getSession } from "@/lib/auth";
 import { safeNext } from "@/lib/forms";
 import { signInWithGoogle } from "../actions";
@@ -18,34 +20,61 @@ function GoogleIcon() {
   );
 }
 
+const points = [
+  { icon: Lock, text: "Tú eres dueño de los datos de tu mascota." },
+  { icon: Stethoscope, text: "Solo MVZ verificados ven el historial clínico." },
+  { icon: ShieldCheck, text: "Cada acceso queda registrado y te avisamos." },
+];
+
 export default async function EntrarPage({ searchParams }: PageProps<"/entrar">) {
   const params = await searchParams;
   const next = safeNext(params.next);
   if (await getSession()) redirect(next);
 
   return (
-    <div className="mx-auto max-w-md">
-      <PageTitle
-        title="Entrar a Scan-Paw"
-        subtitle="Propietarios y médicos veterinarios usan su cuenta de Google. Si es tu primera vez, te pediremos algunos datos."
-      />
-      <FlashMessages error={params.error} ok={params.ok} />
-      <Card>
-        <form action={signInWithGoogle}>
-          <input type="hidden" name="next" value={next} />
-          <button className="flex min-h-12 w-full items-center justify-center gap-3 rounded-lg border border-border bg-surface px-4 font-medium hover:bg-brand-soft">
-            <GoogleIcon />
-            Continuar con Google
-          </button>
-        </form>
-        <p className="mt-4 text-center text-xs text-muted">
-          Al continuar aceptas el{" "}
-          <Link href="/privacidad" className="underline">
-            aviso de privacidad
-          </Link>
-          . Solo usamos tu nombre y correo de Google.
+    <div className="mx-auto grid max-w-4xl items-stretch gap-5 sm:pt-4 md:grid-cols-2">
+      <div className="paw-pattern relative hidden overflow-hidden rounded-3xl bg-brand p-8 text-brand-ink md:flex md:flex-col md:justify-between">
+        <PawMark className="size-12 opacity-90" />
+        <div>
+          <h2 className="text-3xl font-semibold leading-tight">Su historial, en cualquier clínica.</h2>
+          <ul className="mt-6 flex flex-col gap-3 text-sm">
+            {points.map((p) => (
+              <li key={p.text} className="flex items-center gap-3">
+                <span className="grid size-8 place-items-center rounded-lg bg-white/15">
+                  <p.icon aria-hidden className="size-4" />
+                </span>
+                {p.text}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+      <div className="flex flex-col justify-center">
+        <h1 className="text-3xl font-semibold">Entrar a Scan-Paw</h1>
+        <p className="mt-2 text-sm text-muted">
+          Propietarios, médicos veterinarios y estudiantes usan su cuenta de Google. Si es tu primera vez, te pediremos
+          algunos datos.
         </p>
-      </Card>
+        <div className="mt-6">
+          <FlashMessages error={params.error} ok={params.ok} />
+          <Card>
+            <form action={signInWithGoogle}>
+              <input type="hidden" name="next" value={next} />
+              <button className="flex min-h-13 w-full items-center justify-center gap-3 rounded-xl border border-border bg-surface px-4 font-medium shadow-sm transition hover:border-brand/40 hover:bg-brand-soft">
+                <GoogleIcon />
+                Continuar con Google
+              </button>
+            </form>
+            <p className="mt-4 text-center text-xs text-muted">
+              Al continuar aceptas el{" "}
+              <Link href="/privacidad" className="underline">
+                aviso de privacidad
+              </Link>
+              . Solo usamos tu nombre y correo de Google.
+            </p>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }

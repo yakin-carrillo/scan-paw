@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { escapeHtml, ownerEmails, sendEmail } from "@/lib/email";
+import { clinicianCredential, escapeHtml, ownerEmails, sendEmail } from "@/lib/email";
 import { friendlyDbError } from "@/lib/forms";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -20,12 +20,13 @@ export async function vetOpenRecord(token: string) {
     redirect(`/p/${t}?error=${encodeURIComponent(friendlyDbError(error?.message))}`);
   }
 
-  const vetName = escapeHtml(session.profile.full_name);
-  const cedula = escapeHtml(session.vet?.cedula ?? "");
   await sendEmail({
     to: await ownerEmails(petId),
-    subject: "Un médico veterinario abrió el expediente de tu mascota",
-    html: `<p><strong>${vetName}</strong> (cédula ${cedula}) escaneó la placa y tiene acceso al expediente por 7 días.</p>
+    subject: session.student
+      ? "Un estudiante de veterinaria abrió el expediente de tu mascota"
+      : "Un médico veterinario abrió el expediente de tu mascota",
+    html: `<p><strong>${escapeHtml(session.profile.full_name)}</strong> ${clinicianCredential(session)} escaneó la placa
+           y tiene acceso al expediente por 7 días.</p>
            <p>Si no reconoces este acceso, revisa la pestaña "Accesos" de tu mascota en Scan-Paw.</p>`,
   });
 

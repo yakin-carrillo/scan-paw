@@ -1,5 +1,5 @@
 import { PetForm } from "@/components/pet-form";
-import { Card, FlashMessages, PageTitle } from "@/components/ui";
+import { BackLink, Card, FlashMessages, PageTitle } from "@/components/ui";
 import { requireSession } from "@/lib/auth";
 import { createPet } from "../actions";
 
@@ -9,12 +9,17 @@ export default async function NuevaMascotaPage({ searchParams }: PageProps<"/mas
   await requireSession("/mascotas/nueva");
   const params = await searchParams;
   return (
-    <>
-      <PageTitle title="Registrar mascota" subtitle="Podrás agregar foto, vacunas y anexos después." />
+    <div className="mx-auto max-w-2xl">
+      <BackLink href="/mascotas">Mis mascotas</BackLink>
+      <PageTitle
+        eyebrow="Nuevo expediente"
+        title="Registrar mascota"
+        subtitle="Podrás agregar foto, vacunas y anexos después."
+      />
       <FlashMessages error={params.error} />
       <Card>
         <PetForm action={createPet} submitLabel="Guardar mascota" />
       </Card>
-    </>
+    </div>
   );
 }

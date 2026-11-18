@@ -189,8 +189,11 @@ await test("la placa sin activar se reporta como sin_asignar", () =>
     const { rows } = await db.query("select * from public.get_public_pet($1)", [tag.public_token]);
     assert(rows[0].tag_status === "sin_asignar" && rows[0].pet_name === null, JSON.stringify(rows[0]));
   }));
-await test("código de activación incorrecto falla", () =>
-  as(owner, () => expectError(db.query("select public.activate_tag($1, 'MALO', $2)", [tag.public_token, petId]), "no válidos")));
+await test("código de activación incorrecto devuelve false", () =>
+  as(owner, async () => {
+    const { rows } = await db.query("select public.activate_tag($1, 'MALO', $2) as ok", [tag.public_token, petId]);
+    assert(rows[0].ok === false, "debió fallar");
+  }));
 await test("otro usuario no puede ligar la placa a una mascota ajena", () =>
   as(other, () =>
     expectError(db.query("select public.activate_tag($1, $2, $3)", [tag.public_token, tag.activation_code, petId]), "no es tuya")));
@@ -295,7 +298,8 @@ await test("el dueño comparte un código y otro MVZ lo canjea una sola vez", as
   await as(other, () => expectError(db.query("select public.redeem_share_code($1)", [code]), "verificados"));
   const r = await as(vet2, () => db.query("select public.redeem_share_code($1) as pet", [code.toLowerCase()]));
   assert(r.rows[0].pet === petId, "pet incorrecto");
-  await as(vet2, () => expectError(db.query("select public.redeem_share_code($1)", [code]), "vencido"));
+  const again = await as(vet2, () => db.query("select public.redeem_share_code($1) as pet", [code]));
+  assert(again.rows[0].pet === null, "el código se canjeó dos veces");
 });
 
 console.log("\nStorage");
@@ -310,6 +314,114 @@ await test("el dueño sube anexos en la carpeta de su mascota; otro no", async (
 await test("ruta con carpeta inválida no rompe la política", () =>
   as(owner, () =>
     expectError(db.query("insert into storage.objects (bucket_id, name) values ('attachments', 'no-es-uuid/x.pdf')"), "row-level security")));
+
+console.log("\nLímite de intentos");
+await test("tras 10 códigos de activación fallidos se bloquea una hora", async () => {
+  const otherPet = crypto.randomUUID();
+  await as(other, () =>
+    db.query("insert into public.pets (id, name, species, created_by) values ($1, 'Kira', 'gato', $2)", [otherPet, other]));
+  for (let i = 0; i < 10; i++) {
+    await as(other, () => db.query("select public.activate_tag('NOEXISTE00', 'MALO', $1)", [otherPet]));
+  }
+  await as(other, () =>
+    expectError(db.query("select public.activate_tag('NOEXISTE00', 'MALO', $1)", [otherPet]), "Demasiados intentos"));
+});
+
+console.log("\nEstudiantes (No profesionista)");
+const student = await signUp({ full_name: "Eva Soto" });
+await test("el estudiante se registra con universidad y matrícula", async () => {
+  await as(student, () =>
+    expectError(db.query("select public.complete_onboarding('student', 'Eva Soto', '5522223333', null, null, 'UNAM', '!')"), "matrícula"));
+  await as(student, () =>
+    db.query("select public.complete_onboarding('student', 'Eva Soto', '5522223333', null, null, 'UNAM FMVZ', '318004512')"));
+  const { rows } = await db.query("select status from public.student_profiles where user_id = $1", [student]);
+  assert(rows[0]?.status === "pending", JSON.stringify(rows));
+});
+await test("estudiante pendiente no abre expedientes", () =>
+  as(student, () => expectError(db.query("select public.vet_open_pet($1)", [tag.public_token]), "verificados")));
+await test("solo el admin aprueba estudiantes", async () => {
+  await as(student, () =>
+    expectError(db.query("select public.admin_review_student($1, 'approved', '')", [student]), "Solo administradores"));
+  await as(admin, () => db.query("select public.admin_review_student($1, 'approved', '')", [student]));
+});
+await test("lo que registra un estudiante queda marcado como 'estudiante'", async () => {
+  await as(student, () => db.query("select public.vet_open_pet($1)", [tag.public_token]));
+  await as(student, () =>
+    db.query("insert into public.vaccinations (pet_id, vaccine, applied_on, source) values ($1, 'Parvovirus', '2026-11-01', 'vet')", [petId]));
+  const { rows } = await as(owner, () =>
+    db.query("select source, author_name, author_cedula from public.vaccinations where vaccine = 'Parvovirus'"));
+  assert(rows[0].source === "estudiante" && rows[0].author_cedula === null && rows[0].author_name === "Eva Soto", JSON.stringify(rows[0]));
+});
+await test("el dueño ve la universidad del estudiante que accedió", async () => {
+  const { rows } = await as(owner, () =>
+    db.query("select university from public.student_profiles where user_id = $1", [student]));
+  assert(rows[0]?.university === "UNAM FMVZ", JSON.stringify(rows));
+});
+
+console.log("\nCitas");
+let appointmentId;
+await test("el MVZ con acceso agenda una cita y su acceso se extiende hasta la cita", async () => {
+  const at = new Date(Date.now() + 20 * 24 * 3600 * 1000).toISOString();
+  const { rows } = await as(vet, () =>
+    db.query("select public.schedule_appointment($1, $2, 'Revisión de dermatitis') as id", [petId, at]));
+  appointmentId = rows[0].id;
+  const acc = await as(vet, () =>
+    db.query("select max(expires_at) as until from public.vet_access where pet_id = $1 and vet_id = $2", [petId, vet]));
+  assert(new Date(acc.rows[0].until) > new Date(at), "no se extendió el acceso");
+});
+await test("un tercero no puede agendar ni ver la cita", async () => {
+  await as(other, () =>
+    expectError(db.query("select public.schedule_appointment($1, now() + interval '1 day', 'x')", [petId]), "acceso vigente"));
+  const { rows } = await as(other, () => db.query("select id from public.appointments"));
+  assert(rows.length === 0, "vio citas ajenas");
+});
+await test("el dueño ve la cita y solo puede cancelarla", async () => {
+  const { rows } = await as(owner, () => db.query("select pet_name, reason from public.appointments where id = $1", [appointmentId]));
+  assert(rows[0]?.pet_name === "Firulais", JSON.stringify(rows));
+  await as(owner, () =>
+    expectError(db.query("select public.set_appointment_status($1, 'completada')", [appointmentId]), "No puedes"));
+  await as(owner, () => db.query("select public.set_appointment_status($1, 'cancelada')", [appointmentId]));
+});
+await test("no se puede escribir directo en la tabla de citas", () =>
+  as(vet, () => expectError(db.query("update public.appointments set reason = 'x'"), "permission denied")));
+
+console.log("\nMembresía (demostración)");
+await test("el dueño activa la membresía; otro no la ve ni la activa", async () => {
+  await as(other, () => expectError(db.query("select public.demo_activate_membership($1, 'anual')", [petId]), "no es tuya"));
+  await as(owner, () => db.query("select public.demo_activate_membership($1, 'mensual')", [petId]));
+  const mine = await as(owner, () => db.query("select status, plan from public.memberships where pet_id = $1", [petId]));
+  assert(mine.rows[0]?.status === "activa" && mine.rows[0].plan === "mensual", JSON.stringify(mine.rows));
+  const theirs = await as(other, () => db.query("select * from public.memberships"));
+  assert(theirs.rows.length === 0, "otro vio la membresía");
+});
+
+console.log("\nDatos de demostración");
+await test("un usuario normal no puede firmar como MVZ ni con la bandera de demo", async () => {
+  await as(owner, async () => {
+    await db.query("select set_config('scanpaw.demo_seed', 'on', false)");
+    await db.query(
+      "insert into public.conditions (pet_id, kind, description, source, author_name, author_cedula) values ($1, 'alergia', 'Polen', 'vet', 'Falso', '9999999')",
+      [petId]);
+    await db.query("select set_config('scanpaw.demo_seed', 'off', false)");
+  });
+  const { rows } = await as(owner, () => db.query("select source, author_cedula from public.conditions where description = 'Polen'"));
+  assert(rows[0].source === "propietario" && rows[0].author_cedula === null, JSON.stringify(rows[0]));
+});
+await test("solo el admin carga los datos de demo y se pueden volver a cargar", async () => {
+  await as(owner, () => expectError(db.query("select public.admin_seed_demo()"), "Solo administradores"));
+  await as(admin, () => db.query("select public.admin_seed_demo()"));
+  const { rows } = await as(admin, () => db.query("select public.admin_seed_demo() as r"));
+  const pets = await as(admin, () => db.query("select name from public.pets where microchip like 'DEMO-%' order by name"));
+  assert(pets.rows.map((p) => p.name).join(",") === "Luna,Michi", JSON.stringify(pets.rows));
+  const vac = await as(admin, () =>
+    db.query("select count(*)::int as n from public.vaccinations where pet_id = $1 and source = 'vet'", [rows[0].r.luna]));
+  assert(vac.rows[0].n === 2, `vacunas firmadas por MVZ: ${vac.rows[0].n}`);
+  const pub = await as(null, () => db.query("select pet_name from public.get_public_pet($1)", [rows[0].r.luna_tag]));
+  assert(pub.rows[0].pet_name === "Luna", "la placa demo no funciona");
+  await as(admin, () => db.query("select public.admin_reset_demo()"));
+  const after = await as(admin, () => db.query("select count(*)::int as n from public.pets where microchip like 'DEMO-%'"));
+  assert(after.rows[0].n === 0, "no se borraron las mascotas demo");
+});
 
 console.log("\nRevocación de placa");
 await test("al revocar la placa, la vista pública ya no muestra datos", async () => {

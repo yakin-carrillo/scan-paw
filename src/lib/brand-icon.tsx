@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 
-const BRAND = "#0f766e";
+const BRAND = "#0f6f66";
 
 /**
  * Ícono de Scan-Paw (huella blanca sobre fondo verde) dibujado con divs,

@@ -2,14 +2,18 @@ import "server-only";
 import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import type { Profile, UserRole, VetProfile } from "@/lib/types";
+import type { Profile, StudentProfile, UserRole, VetProfile } from "@/lib/types";
 
 export type Session = {
   userId: string;
   email: string | null;
   profile: Profile;
   vet: VetProfile | null;
+  student: StudentProfile | null;
+  /** MVZ con cédula aprobada. */
   isVerifiedVet: boolean;
+  /** MVZ o estudiante verificado: puede abrir expedientes. */
+  isVerifiedClinician: boolean;
   /** Completó el registro guiado (teléfono, tipo de cuenta y consentimiento). */
   onboarded: boolean;
 };
@@ -29,6 +33,7 @@ export const getSession = cache(async (): Promise<Session | null> => {
   if (!profile) return null;
 
   let vet: VetProfile | null = null;
+  let student: StudentProfile | null = null;
   if (profile.role === "vet") {
     const { data } = await supabase
       .from("vet_profiles")
@@ -36,14 +41,26 @@ export const getSession = cache(async (): Promise<Session | null> => {
       .eq("user_id", profile.id)
       .maybeSingle<VetProfile>();
     vet = data;
+  } else if (profile.role === "student") {
+    const { data } = await supabase
+      .from("student_profiles")
+      .select("user_id, university, enrollment_id, status, review_note")
+      .eq("user_id", profile.id)
+      .maybeSingle<StudentProfile>();
+    student = data;
   }
+
+  const isVerifiedVet = profile.role === "vet" && vet?.status === "approved";
+  const isVerifiedStudent = profile.role === "student" && student?.status === "approved";
 
   return {
     userId: profile.id,
     email: typeof claims.email === "string" ? claims.email : null,
     profile,
     vet,
-    isVerifiedVet: profile.role === "vet" && vet?.status === "approved",
+    student,
+    isVerifiedVet,
+    isVerifiedClinician: isVerifiedVet || isVerifiedStudent,
     onboarded: Boolean(profile.privacy_accepted_at),
   };
 });
@@ -64,4 +81,8 @@ export async function requireRole(roles: UserRole[]): Promise<Session> {
   const session = await requireSession();
   if (!roles.includes(session.profile.role)) redirect("/");
   return session;
+}
+
+export function isClinicianRole(role: UserRole | undefined): boolean {
+  return role === "vet" || role === "student";
 }

@@ -1,7 +1,7 @@
 export type UserRole = "owner" | "vet" | "student" | "admin";
 export type VerificationStatus = "pending" | "approved" | "rejected";
 export type Species = "perro" | "gato";
-export type RecordSource = "vet" | "propietario";
+export type RecordSource = "vet" | "estudiante" | "propietario";
 
 export type Profile = {
   id: string;
@@ -104,4 +104,39 @@ export function latestVersions<T extends { id: string; amends_id: string | null 
 ): T[] {
   const amended = new Set(rows.map((r) => r.amends_id).filter(Boolean));
   return rows.filter((r) => !amended.has(r.id));
+}
+
+export type StudentProfile = {
+  user_id: string;
+  university: string;
+  enrollment_id: string;
+  status: VerificationStatus;
+  review_note: string | null;
+};
+
+export type AppointmentStatus = "programada" | "completada" | "cancelada";
+
+export type Appointment = {
+  id: string;
+  pet_id: string;
+  clinician_id: string | null;
+  pet_name: string;
+  clinician_name: string | null;
+  clinic_name: string | null;
+  scheduled_at: string;
+  reason: string;
+  status: AppointmentStatus;
+  notes: string | null;
+};
+
+export type Membership = {
+  pet_id: string;
+  plan: "mensual" | "anual";
+  status: "activa" | "cancelada";
+  current_period_end: string;
+  provider: string;
+};
+
+export function membershipActive(m: Membership | null | undefined): boolean {
+  return Boolean(m && m.status === "activa" && new Date(m.current_period_end) > new Date());
 }

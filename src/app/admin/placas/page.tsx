@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
-import { Badge, Button, ButtonLink, Card, Field, FlashMessages, formatDate, Input, PageTitle } from "@/components/ui";
+import { Download } from "lucide-react";
+import { BackLink, Badge, Button, ButtonLink, Card, Field, FlashMessages, formatDate, Input, PageTitle } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
 import { friendlyDbError } from "@/lib/forms";
 import { createClient } from "@/lib/supabase/server";
@@ -35,9 +36,7 @@ export default async function PlacasAdminPage({ searchParams }: PageProps<"/admi
 
   return (
     <>
-      <a href="/admin" className="mb-3 inline-block text-sm text-muted">
-        ← Administración
-      </a>
+      <BackLink href="/admin">Administración</BackLink>
       <PageTitle
         title="Placas"
         subtitle="Genera lotes sin asignar. Cada placa lleva el QR y su código; el código de activación va en el empaque."
@@ -59,11 +58,11 @@ export default async function PlacasAdminPage({ searchParams }: PageProps<"/admi
         <h2 className="font-semibold">{lote ? `Lote ${lote}` : "Últimas placas"}</h2>
         {lote && (
           <ButtonLink href={`/admin/placas/csv?lote=${encodeURIComponent(lote)}`} variant="secondary" prefetch={false}>
-            Descargar CSV del lote
+            <Download aria-hidden /> Descargar CSV del lote
           </ButtonLink>
         )}
       </div>
-      <div className="overflow-x-auto rounded-xl border border-border bg-surface">
+      <div className="overflow-x-auto rounded-2xl border border-border bg-surface shadow-card">
         <table className="w-full text-left text-sm">
           <thead className="text-muted">
             <tr>
