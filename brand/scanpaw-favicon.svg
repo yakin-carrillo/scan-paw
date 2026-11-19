@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Scan-Paw">
+  <!-- Versión para 16–32 px: sin visor, huella más grande y gruesa -->
+  <rect width="512" height="512" rx="116" fill="#262A6B"/>
+  <g fill="#F6F1EA" transform="translate(256 262) scale(1.38) translate(-256 -266)">
+    <rect x="124" y="194" width="60" height="68" rx="23" transform="rotate(-24 154 228)"/>
+    <rect x="188" y="134" width="60" height="70" rx="23" transform="rotate(-8 218 169)"/>
+    <rect x="264" y="134" width="60" height="70" rx="23" transform="rotate(8 294 169)"/>
+    <rect x="328" y="194" width="60" height="68" rx="23" transform="rotate(24 358 228)"/>
+    <path fill="#FF6F59" d="M256 398c-17-11-90-53-90-106 0-30 22-51 49-51 18 0 32 9 41 23 9-14 23-23 41-23 27 0 49 21 49 51 0 53-73 95-90 106z"/>
+  </g>
+</svg>

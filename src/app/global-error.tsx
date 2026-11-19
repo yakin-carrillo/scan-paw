@@ -13,8 +13,8 @@ export default function GlobalError({ retry }: { error: unknown; retry: () => vo
           padding: 16,
           textAlign: "center",
           fontFamily: "system-ui, sans-serif",
-          background: "#f6f3ee",
-          color: "#17302b",
+          background: "#f6f1ea",
+          color: "#161833",
         }}
       >
         <title>Error · Scan-Paw</title>
@@ -29,8 +29,8 @@ export default function GlobalError({ retry }: { error: unknown; retry: () => vo
               padding: "0 20px",
               border: 0,
               borderRadius: 12,
-              background: "#0f6f66",
-              color: "#fff",
+              background: "#262a6b",
+              color: "#f6f1ea",
               fontSize: 16,
             }}
           >

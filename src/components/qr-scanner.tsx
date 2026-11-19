@@ -111,7 +111,7 @@ export function QrScanner({ mode = "abrir" }: { mode?: Mode }) {
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="relative mx-auto aspect-square w-full max-w-sm overflow-hidden rounded-3xl bg-foreground shadow-lift">
+      <div className="relative mx-auto aspect-square w-full max-w-sm overflow-hidden rounded-3xl bg-deep shadow-lift">
         <video ref={videoRef} playsInline muted className={`size-full object-cover ${scanning ? "" : "hidden"}`} />
         <canvas ref={canvasRef} className="hidden" />
         {scanning ? (
@@ -123,7 +123,7 @@ export function QrScanner({ mode = "abrir" }: { mode?: Mode }) {
             </p>
           </>
         ) : (
-          <div className="paw-pattern flex size-full flex-col items-center justify-center gap-4 p-6 text-center text-background">
+          <div className="paw-pattern flex size-full flex-col items-center justify-center gap-4 p-6 text-center text-on-deep">
             {state === "denied" || state === "unsupported" ? (
               <CameraOff aria-hidden className="size-12 opacity-80" />
             ) : (

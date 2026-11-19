@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Scan-Paw">
+  <rect width="512" height="512" rx="116" fill="#262A6B"/>
+  <g fill="none" stroke="#FF6F59" stroke-width="22" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M96 168V128a32 32 0 0 1 32-32h40"/>
+    <path d="M344 96h40a32 32 0 0 1 32 32v40"/>
+    <path d="M416 344v40a32 32 0 0 1-32 32h-40"/>
+    <path d="M168 416h-40a32 32 0 0 1-32-32v-40"/>
+  </g>
+  <g fill="#F6F1EA">
+    <rect x="124" y="194" width="60" height="68" rx="23" transform="rotate(-24 154 228)"/>
+    <rect x="188" y="134" width="60" height="70" rx="23" transform="rotate(-8 218 169)"/>
+    <rect x="264" y="134" width="60" height="70" rx="23" transform="rotate(8 294 169)"/>
+    <rect x="328" y="194" width="60" height="68" rx="23" transform="rotate(24 358 228)"/>
+    <path d="M256 398c-17-11-90-53-90-106 0-30 22-51 49-51 18 0 32 9 41 23 9-14 23-23 41-23 27 0 49 21 49 51 0 53-73 95-90 106z"/>
+  </g>
+</svg>

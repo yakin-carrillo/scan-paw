@@ -17,7 +17,7 @@ export function EntryAuthor({
   return (
     <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3 text-xs text-muted">
       {source === "vet" ? (
-        <Badge tone="brand">
+        <Badge tone="verified">
           <BadgeCheck aria-hidden /> Registrado por MVZ
         </Badge>
       ) : source === "estudiante" ? (

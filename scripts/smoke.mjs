@@ -4,7 +4,7 @@
 const base = (process.argv[2] ?? "https://scan-paw.vercel.app").replace(/\/$/, "");
 
 const checks = [
-  ["/", 200, "acompaña a tu mascota"],
+  ["/", 200, "siempre con ellos"],
   ["/entrar", 200, "Continuar con Google"],
   ["/privacidad", 200, "Aviso de privacidad"],
   ["/p/NOEXISTE00", 200, "Placa no encontrada"],

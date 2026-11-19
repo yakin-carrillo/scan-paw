@@ -173,7 +173,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
                 <span>
                   {v.name} · {v.kind === "vet" ? `Cédula ${v.id}` : `Estudiante, ${v.detail}`}
                 </span>
-                <Badge tone={v.status === "approved" ? "brand" : "danger"}>
+                <Badge tone={v.status === "approved" ? "verified" : "danger"}>
                   {v.status === "approved" ? "Aprobada" : "Rechazada"}
                 </Badge>
               </li>

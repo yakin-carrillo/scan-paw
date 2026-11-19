@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Lock, ShieldCheck, Stethoscope } from "lucide-react";
-import { PawMark } from "@/components/logo";
+import { BrandSymbol } from "@/components/logo";
 import { Card, FlashMessages } from "@/components/ui";
 import { getSession, homePath } from "@/lib/auth";
 import { safeNext } from "@/lib/forms";
@@ -34,8 +34,8 @@ export default async function EntrarPage({ searchParams }: PageProps<"/entrar">)
 
   return (
     <div className="mx-auto grid max-w-4xl items-stretch gap-5 sm:pt-4 md:grid-cols-2">
-      <div className="paw-pattern relative hidden overflow-hidden rounded-3xl bg-brand p-8 text-brand-ink md:flex md:flex-col md:justify-between">
-        <PawMark className="size-12 opacity-90" />
+      <div className="paw-pattern relative hidden overflow-hidden rounded-3xl bg-deep p-8 text-on-deep md:flex md:flex-col md:justify-between">
+        <BrandSymbol className="size-16" />
         <div>
           <h2 className="text-3xl font-semibold leading-tight">Su historial, en cualquier clínica.</h2>
           <ul className="mt-6 flex flex-col gap-3 text-sm">

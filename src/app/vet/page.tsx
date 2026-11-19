@@ -111,7 +111,7 @@ export default async function VetPage({ searchParams }: PageProps<"/vet">) {
                 <GraduationCap aria-hidden /> Estudiante · No profesionista
               </Badge>
             ) : (
-              <Badge tone="brand">
+              <Badge tone="verified">
                 <BadgeCheck aria-hidden /> MVZ verificado
               </Badge>
             )}
@@ -123,7 +123,7 @@ export default async function VetPage({ searchParams }: PageProps<"/vet">) {
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Link href="/escanear" className="group">
-          <div className="paw-pattern flex h-full items-center gap-4 rounded-2xl bg-brand p-5 text-brand-ink shadow-card transition group-hover:shadow-lift sm:p-6">
+          <div className="paw-pattern flex h-full items-center gap-4 rounded-2xl bg-deep p-5 text-on-deep shadow-card transition group-hover:shadow-lift sm:p-6">
             <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-white/15">
               <ScanLine aria-hidden className="size-6" />
             </span>

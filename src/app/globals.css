@@ -1,50 +1,63 @@
 @import "tailwindcss";
 
 /*
- * Scan-Paw · "clínica cálida"
- * Verde azulado clínico (confianza, salud) sobre crema cálida, con un acento
- * durazno para lo afectivo (la mascota, la familia). Rojo solo para alertas.
+ * Scan-Paw · guía de identidad 1.0
+ * Índigo Guardián (confianza, protección) sobre Arena cálida, con Coral Latido
+ * para lo afectivo y Menta Vital para salud y verificación. Rojo Rescate solo
+ * para alertas. Todo texto cumple WCAG AA en ambos modos.
  */
 :root {
-  --background: #f6f3ee;
-  --surface: #ffffff;
-  --surface-2: #fbf9f5;
-  --foreground: #17302b;
-  --muted: #5f6f6a;
-  --border: #e5dfd5;
-  --brand: #0f6f66;
-  --brand-strong: #0a524b;
-  --brand-soft: #e2f0ec;
-  --brand-ink: #ffffff;
-  --accent: #a9521c; /* durazno tostado: contraste AA con texto blanco y sobre crema */
-  --accent-soft: #fbe9dd;
-  --danger: #c0352b;
-  --danger-soft: #fbe7e4;
-  --danger-ink: #ffffff;
-  --warning: #9a5a06;
-  --warning-soft: #fcf1dc;
-  --shadow: 23 48 43;
+  --background: #f6f1ea; /* Arena */
+  --surface: #fffdf9;
+  --surface-2: #fbf8f3;
+  --foreground: #161833; /* Tinta */
+  --muted: #5e6178;
+  --border: #e4dccf;
+  --brand: #262a6b; /* Índigo Guardián */
+  --brand-strong: #1d2056;
+  --brand-soft: #e8e9f6;
+  --brand-ink: #f6f1ea;
+  --deep: #262a6b; /* superficies de marca: índigo en ambos modos */
+  --on-deep: #f6f1ea;
+  --coral: #ff6f59; /* Coral Latido: decorativo y botones con texto Tinta */
+  --coral-ink: #161833;
+  --accent: #b93b27; /* Coral Profundo: coral apto para texto */
+  --accent-soft: #fce7e2;
+  --verified: #0e7a63; /* Menta Profunda */
+  --verified-soft: #ddf4ec;
+  --danger: #c42b2b; /* Rojo Rescate */
+  --danger-soft: #fbe5e3;
+  --danger-ink: #fbf8f3;
+  --warning: #8a4f00;
+  --warning-soft: #fdf0d9;
+  --shadow: 22 24 51;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0e1513;
-    --surface: #151e1b;
-    --surface-2: #1a2420;
-    --foreground: #e6eeea;
-    --muted: #97a7a1;
-    --border: #283430;
-    --brand: #3cc7b2;
-    --brand-strong: #74dccb;
-    --brand-soft: #143029;
-    --brand-ink: #062320;
-    --accent: #f0955f;
-    --accent-soft: #3a2418;
-    --danger: #f2776c;
+    --background: #11132b;
+    --surface: #1a1d3d;
+    --surface-2: #20244a;
+    --foreground: #f1ece4;
+    --muted: #a9accb;
+    --border: #2e3263;
+    --brand: #aeb3f7;
+    --brand-strong: #c7cafa;
+    --brand-soft: #262a5c;
+    --brand-ink: #11132b;
+    --deep: #262a6b;
+    --on-deep: #f1ece4;
+    --coral: #ff6f59;
+    --coral-ink: #161833;
+    --accent: #ff8f7d;
+    --accent-soft: #3a1f22;
+    --verified: #4fd8b4;
+    --verified-soft: #12332d;
+    --danger: #ff8075;
     --danger-soft: #3a1714;
-  --danger-ink: #1f0806; /* el rojo claro del modo oscuro necesita texto oscuro */
-    --warning: #f1b84a;
-    --warning-soft: #33260e;
+    --danger-ink: #1f0806; /* el rojo claro del modo oscuro necesita texto oscuro */
+    --warning: #f2b54a;
+    --warning-soft: #33270f;
     --shadow: 0 0 0;
   }
 }
@@ -67,9 +80,15 @@
   --color-danger-ink: var(--danger-ink);
   --color-warning: var(--warning);
   --color-warning-soft: var(--warning-soft);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-display: var(--font-display-face);
+  --color-deep: var(--deep);
+  --color-on-deep: var(--on-deep);
+  --color-coral: var(--coral);
+  --color-coral-ink: var(--coral-ink);
+  --color-verified: var(--verified);
+  --color-verified-soft: var(--verified-soft);
+  --font-sans: var(--font-figtree);
+  --font-mono: var(--font-jetbrains-mono);
+  --font-display: var(--font-sora);
   --shadow-card: 0 1px 2px rgb(var(--shadow) / 0.05), 0 4px 16px -6px rgb(var(--shadow) / 0.08);
   --shadow-lift: 0 2px 4px rgb(var(--shadow) / 0.06), 0 12px 32px -10px rgb(var(--shadow) / 0.18);
 }
@@ -83,7 +102,7 @@ h1,
 h2,
 h3 {
   font-family: var(--font-display);
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
 }
 
 input,
@@ -94,7 +113,7 @@ textarea {
 
 /* Textura sutil de huellas para fondos de marca. */
 .paw-pattern {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72' viewBox='0 0 72 72'%3E%3Cg fill='%23ffffff' fill-opacity='0.07'%3E%3Cellipse cx='18' cy='22' rx='3.2' ry='4'/%3E%3Cellipse cx='25' cy='17' rx='3.2' ry='4'/%3E%3Cellipse cx='32' cy='22' rx='3.2' ry='4'/%3E%3Cpath d='M25 25c-5 0-8 5-8 8s3 3 8 3 8 0 8-3-3-8-8-8z'/%3E%3Cellipse cx='50' cy='52' rx='3.2' ry='4'/%3E%3Cellipse cx='57' cy='47' rx='3.2' ry='4'/%3E%3Cellipse cx='64' cy='52' rx='3.2' ry='4'/%3E%3Cpath d='M57 55c-5 0-8 5-8 8s3 3 8 3 8 0 8-3-3-8-8-8z'/%3E%3C/g%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'%3E%3Cg fill='%23ffffff' fill-opacity='0.07'%3E%3Cg transform='translate(8 8)'%3E%3Crect x='1' y='6' width='4.4' height='5' rx='1.9'/%3E%3Crect x='6' y='1.5' width='4.4' height='5.2' rx='1.9'/%3E%3Crect x='11.6' y='1.5' width='4.4' height='5.2' rx='1.9'/%3E%3Crect x='16.6' y='6' width='4.4' height='5' rx='1.9'/%3E%3Cpath d='M11 22c-1.2-.8-6.6-4-6.6-7.8 0-2.2 1.6-3.7 3.6-3.7 1.3 0 2.3.7 3 1.7.7-1 1.7-1.7 3-1.7 2 0 3.6 1.5 3.6 3.7 0 3.8-5.4 7-6.6 7.8z'/%3E%3C/g%3E%3Cg transform='translate(48 48)'%3E%3Crect x='1' y='6' width='4.4' height='5' rx='1.9'/%3E%3Crect x='6' y='1.5' width='4.4' height='5.2' rx='1.9'/%3E%3Crect x='11.6' y='1.5' width='4.4' height='5.2' rx='1.9'/%3E%3Crect x='16.6' y='6' width='4.4' height='5' rx='1.9'/%3E%3Cpath d='M11 22c-1.2-.8-6.6-4-6.6-7.8 0-2.2 1.6-3.7 3.6-3.7 1.3 0 2.3.7 3 1.7.7-1 1.7-1.7 3-1.7 2 0 3.6 1.5 3.6 3.7 0 3.8-5.4 7-6.6 7.8z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
 }
 
 @media print {
@@ -105,8 +124,10 @@ textarea {
     --foreground: #111111;
     --muted: #444444;
     --border: #cccccc;
-    --danger: #c0352b;
+    --danger: #c42b2b;
     --danger-ink: #ffffff;
+    --brand: #262a6b;
+    --accent: #b93b27;
   }
   body {
     background: #ffffff;

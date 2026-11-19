@@ -5,7 +5,7 @@ export const cx = (...parts: (string | false | null | undefined)[]) => parts.fil
 export const buttonStyles = {
   primary: "bg-brand text-brand-ink shadow-sm hover:bg-brand-strong",
   secondary: "border border-border bg-surface text-foreground hover:border-brand/40 hover:bg-brand-soft",
-  accent: "bg-accent text-white shadow-sm hover:brightness-95 dark:text-black",
+  accent: "bg-coral text-coral-ink shadow-sm hover:brightness-95",
   danger: "bg-danger text-danger-ink shadow-sm hover:brightness-95",
   ghost: "text-foreground hover:bg-brand-soft",
 };

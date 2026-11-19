@@ -21,7 +21,7 @@ export default async function CuentaPage({ searchParams }: PageProps<"/cuenta">)
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <Badge tone="brand">{roleLabel[profile.role]}</Badge>
           {vet && (
-            <Badge tone={vet.status === "approved" ? "brand" : vet.status === "rejected" ? "danger" : "warning"}>
+            <Badge tone={vet.status === "approved" ? "verified" : vet.status === "rejected" ? "danger" : "warning"}>
               Cédula {vet.cedula}:{" "}
               {vet.status === "approved" ? "verificada" : vet.status === "rejected" ? "rechazada" : "en revisión"}
             </Badge>

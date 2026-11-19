@@ -108,7 +108,7 @@ export function Badge({
   className,
   children,
 }: {
-  tone?: "neutral" | "brand" | "accent" | "warning" | "danger";
+  tone?: "neutral" | "brand" | "accent" | "verified" | "warning" | "danger";
   className?: string;
   children: ReactNode;
 }) {
@@ -116,6 +116,7 @@ export function Badge({
     neutral: "bg-surface-2 text-muted border border-border",
     brand: "bg-brand-soft text-brand-strong",
     accent: "bg-accent-soft text-accent",
+    verified: "bg-verified-soft text-verified",
     warning: "bg-warning-soft text-warning",
     danger: "bg-danger-soft text-danger",
   };

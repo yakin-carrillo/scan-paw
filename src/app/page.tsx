@@ -67,7 +67,7 @@ async function SampleQr() {
     type: "svg",
     errorCorrectionLevel: "Q",
     margin: 0,
-    color: { dark: "#17302b", light: "#00000000" },
+    color: { dark: "#161833", light: "#00000000" },
   });
   return <div aria-hidden className="size-full [&_svg]:size-full" dangerouslySetInnerHTML={{ __html: svg }} />;
 }
@@ -92,7 +92,7 @@ function HeroVisual() {
           <p className="font-display text-lg font-semibold">Hola, soy Luna</p>
           <p className="text-[11px] text-muted">Mi familia: Ana</p>
           <div className="grid w-full grid-cols-2 gap-1.5">
-            <span className="flex items-center justify-center gap-1 rounded-xl bg-brand py-2 text-[11px] font-medium text-brand-ink">
+            <span className="flex items-center justify-center gap-1 rounded-xl bg-deep py-2 text-[11px] font-medium text-on-deep">
               <Phone className="size-3.5" /> Llamar
             </span>
             <span className="flex items-center justify-center gap-1 rounded-xl border border-border py-2 text-[11px] font-medium">
@@ -106,8 +106,8 @@ function HeroVisual() {
       </div>
       {/* placa del collar */}
       <div className="absolute bottom-6 left-0 -rotate-6">
-        <div className="mx-auto h-6 w-3 rounded-t-full border-4 border-b-0 border-accent/70" />
-        <div className="grid size-40 place-items-center rounded-full border-[6px] border-accent bg-white p-7 shadow-lift sm:size-44">
+        <div className="mx-auto h-6 w-3 rounded-t-full border-4 border-b-0 border-coral/70" />
+        <div className="grid size-40 place-items-center rounded-full border-[6px] border-coral bg-white p-7 shadow-lift sm:size-44">
           <SampleQr />
         </div>
         <p className="mt-2 text-center font-mono text-xs tracking-widest text-muted">SCAN-PAW</p>
@@ -138,15 +138,14 @@ export default async function Home() {
       <section className="grid items-center gap-10 pt-2 md:grid-cols-[1.1fr_1fr]">
         <div className="flex flex-col gap-5">
           <p className="inline-flex w-fit items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 text-xs font-medium text-muted">
-            <span className="size-1.5 rounded-full bg-accent" /> Para perros y gatos en México
+            <span className="size-1.5 rounded-full bg-coral" /> Para perros y gatos en México
           </p>
-          <h1 className="text-4xl leading-[1.05] font-semibold sm:text-5xl">
-            Un historial clínico que acompaña a tu mascota{" "}
-            <span className="text-brand">a cualquier clínica.</span>
+          <h1 className="text-4xl leading-[1.05] font-semibold sm:text-6xl">
+            Su historia, <span className="text-accent">siempre con ellos.</span>
           </h1>
           <p className="max-w-xl text-lg text-muted">
-            Scan-Paw une la información médica de tu mascota en una placa con código QR. Tú eres dueño de los datos;
-            los médicos veterinarios verificados la consultan y agregan información.
+            El historial clínico de tu mascota viaja en su placa QR, a cualquier clínica. Tú decides quién lo ve; solo
+            médicos veterinarios verificados pueden abrirlo, y si se pierde, quien la encuentre sabrá cómo avisarte.
           </p>
           <div className="flex flex-wrap gap-3">
             <ButtonLink href="/entrar" size="lg">
@@ -198,12 +197,12 @@ export default async function Home() {
             key={a.title}
             className={cx(
               "rounded-3xl p-6",
-              i === 0 ? "paw-pattern bg-brand text-brand-ink" : "border border-border bg-surface shadow-card",
+              i === 0 ? "paw-pattern bg-deep text-on-deep" : "border border-border bg-surface shadow-card",
             )}
           >
             <a.icon className={cx("size-8", i === 0 ? "" : "text-brand")} />
             <h3 className="mt-4 text-xl font-semibold">{a.title}</h3>
-            <ul className={cx("mt-3 flex flex-col gap-2 text-sm", i === 0 ? "text-brand-ink/90" : "text-muted")}>
+            <ul className={cx("mt-3 flex flex-col gap-2 text-sm", i === 0 ? "text-on-deep/90" : "text-muted")}>
               {a.points.map((p) => (
                 <li key={p} className="flex gap-2">
                   <Check aria-hidden className="mt-0.5 size-4 shrink-0" />
@@ -257,7 +256,7 @@ export default async function Home() {
         </div>
       </section>
 
-      <section className="paw-pattern flex flex-col items-start gap-5 rounded-3xl bg-foreground p-8 text-background sm:flex-row sm:items-center sm:justify-between sm:p-10">
+      <section className="paw-pattern flex flex-col items-start gap-5 rounded-3xl bg-deep p-8 text-on-deep sm:flex-row sm:items-center sm:justify-between sm:p-10">
         <div>
           <h2 className="text-2xl font-semibold sm:text-3xl">Que su historia clínica no se pierda.</h2>
           <p className="mt-2 flex items-center gap-2 text-sm opacity-80">

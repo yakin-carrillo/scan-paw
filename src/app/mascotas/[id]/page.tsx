@@ -100,7 +100,7 @@ export default async function PetPage({ params, searchParams }: PageProps<"/masc
       )}
 
       <Card className="overflow-hidden p-0 sm:p-0">
-        <div className={cx("h-20 sm:h-24", pet.lost_mode ? "bg-danger" : "paw-pattern bg-brand")} />
+        <div className={cx("h-20 sm:h-24", pet.lost_mode ? "bg-danger" : "paw-pattern bg-deep")} />
         <div className="-mt-12 flex flex-col gap-4 px-5 pb-5 sm:flex-row sm:items-end sm:px-6 sm:pb-6">
           <div className="w-fit rounded-[2.2rem] bg-surface p-1.5">
             <PetAvatar species={pet.species} name={pet.name} photoUrl={record.photoUrl} size="xl" />
@@ -677,7 +677,7 @@ function TagTab({ record }: { record: PetRecord }) {
             <img
               src={`/api/qr/${active.public_token}`}
               alt="Código QR de la placa"
-              className="size-44 rounded-full border-[6px] border-accent bg-white p-7"
+              className="size-44 rounded-full border-[6px] border-coral bg-white p-7"
             />
             <div className="flex flex-col gap-1 text-sm">
               <p className="font-mono text-lg font-semibold tracking-widest">{active.public_token}</p>
