@@ -5,7 +5,9 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireSession } from "@/lib/auth";
 import { firstError, formObject, friendlyDbError, optionalDate, optionalText } from "@/lib/forms";
+import { notifyUsers, petOwnerIds } from "@/lib/push";
 import { createClient } from "@/lib/supabase/server";
+import { formatDateTime } from "@/components/ui";
 
 const uuid = z.uuid();
 /** Nombre de archivo que generan los cargadores del navegador (crypto.randomUUID()). */
@@ -246,6 +248,12 @@ export async function revokeClinicianAccess(petId: string, clinicianId: string) 
   const supabase = await createClient();
   const { error } = await supabase.rpc("owner_revoke_access", { p_pet: petId, p_clinician: clinicianId });
   if (error) back(petId, "accesos", { error: friendlyDbError(error.message) });
+  const { data: pet } = await supabase.from("pets").select("name").eq("id", petId).maybeSingle();
+  await notifyUsers([clinicianId], {
+    title: "Acceso retirado",
+    body: `La familia de ${pet?.name ?? "tu paciente"} retiró tu acceso al expediente. Sus citas pendientes se cancelaron.`,
+    url: "/vet",
+  });
   revalidatePath(`/mascotas/${petId}`);
   back(petId, "accesos", { ok: "Acceso retirado. Ya no puede ver el expediente." });
 }
@@ -284,9 +292,26 @@ export async function setAppointmentStatus(petId: string, appointmentId: string,
   uuid.parse(petId);
   uuid.parse(appointmentId);
   const parsed = appointmentStatus.parse(status);
+  const session = await requireSession();
   const supabase = await createClient();
   const { error } = await supabase.rpc("set_appointment_status", { p_id: appointmentId, p_status: parsed });
   if (error) back(petId, "identificacion", { error: friendlyDbError(error.message) });
+  if (parsed === "cancelada") {
+    // Avisa a la otra parte: al clínico si canceló la familia, y viceversa.
+    const { data: a } = await supabase
+      .from("appointments")
+      .select("pet_name, clinician_id, scheduled_at")
+      .eq("id", appointmentId)
+      .maybeSingle();
+    if (a) {
+      const byClinician = a.clinician_id === session.userId;
+      await notifyUsers(byClinician ? await petOwnerIds(petId) : a.clinician_id ? [a.clinician_id] : [], {
+        title: `Cita de ${a.pet_name} cancelada`,
+        body: `${byClinician ? "El clínico" : "La familia"} canceló la cita del ${formatDateTime(a.scheduled_at)}.`,
+        url: byClinician ? `/mascotas/${petId}` : "/vet/agenda",
+      });
+    }
+  }
   revalidatePath(`/mascotas/${petId}`);
   back(petId, "identificacion", { ok: parsed === "cancelada" ? "Cita cancelada." : "Cita marcada como completada." });
 }

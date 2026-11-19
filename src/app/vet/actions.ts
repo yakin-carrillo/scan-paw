@@ -5,8 +5,9 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireRole } from "@/lib/auth";
 import { mexicoCityToIso } from "@/lib/clinic";
-import { clinicianCredential, escapeHtml, ownerEmails, sendEmail } from "@/lib/email";
 import { friendlyDbError } from "@/lib/forms";
+import { clinicianCredential, notifyUsers, petOwnerIds } from "@/lib/push";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { formatDateTime } from "@/components/ui";
 
@@ -23,11 +24,10 @@ export async function redeemCode(formData: FormData) {
     redirect(`/vet?error=${encodeURIComponent(message)}`);
   }
 
-  await sendEmail({
-    to: await ownerEmails(petId),
-    subject: "Alguien usó tu código de acceso de Scan-Paw",
-    html: `<p><strong>${escapeHtml(session.profile.full_name)}</strong> ${clinicianCredential(session)} tiene acceso al
-           expediente por 7 días.</p>`,
+  await notifyUsers(await petOwnerIds(petId), {
+    title: "Alguien usó tu código de acceso",
+    body: `${session.profile.full_name} (${clinicianCredential(session)}) tiene acceso al expediente por 7 días.`,
+    url: `/mascotas/${petId}?tab=accesos`,
   });
   redirect(`/mascotas/${petId}`);
 }
@@ -55,15 +55,11 @@ export async function scheduleAppointment(formData: FormData) {
   const { error } = await supabase.rpc("schedule_appointment", { p_pet: d.pet, p_at: iso, p_reason: d.reason });
   if (error) fail(friendlyDbError(error.message));
 
-  const clinic = session.vet?.clinic_name ? ` en ${escapeHtml(session.vet.clinic_name)}` : "";
-  await sendEmail({
-    to: await ownerEmails(d.pet),
-    subject: "Nueva cita para tu mascota",
-    html: `<p><strong>${escapeHtml(session.profile.full_name)}</strong>${clinic} agendó una cita el
-           <strong>${escapeHtml(formatDateTime(iso!))}</strong>.</p>
-           <p>Motivo: ${escapeHtml(d.reason)}</p>
-           <p>Para preparar la consulta, su acceso al expediente se extiende hasta el día siguiente de la cita.
-           Puedes cancelarla desde el expediente de tu mascota en Scan-Paw.</p>`,
+  const clinic = session.vet?.clinic_name ? ` en ${session.vet.clinic_name}` : "";
+  await notifyUsers(await petOwnerIds(d.pet), {
+    title: "Nueva cita para tu mascota",
+    body: `${session.profile.full_name}${clinic} agendó una cita el ${formatDateTime(iso!)}. Motivo: ${d.reason}`,
+    url: `/mascotas/${d.pet}`,
   });
   revalidatePath("/vet");
   revalidatePath("/vet/agenda");
@@ -77,6 +73,20 @@ export async function updateAppointment(appointmentId: string, status: "completa
   const supabase = await createClient();
   const { error } = await supabase.rpc("set_appointment_status", { p_id: appointmentId, p_status: status });
   if (error) redirect(`/vet/agenda?error=${encodeURIComponent(friendlyDbError(error.message))}`);
+  if (status === "cancelada") {
+    const { data: a } = await createAdminClient()
+      .from("appointments")
+      .select("pet_id, pet_name, scheduled_at")
+      .eq("id", appointmentId)
+      .maybeSingle();
+    if (a) {
+      await notifyUsers(await petOwnerIds(a.pet_id), {
+        title: `Cita de ${a.pet_name} cancelada`,
+        body: `El clínico canceló la cita del ${formatDateTime(a.scheduled_at)}.`,
+        url: `/mascotas/${a.pet_id}`,
+      });
+    }
+  }
   revalidatePath("/vet/agenda");
   revalidatePath("/vet");
   redirect(`/vet/agenda?ok=${encodeURIComponent(status === "completada" ? "Cita completada." : "Cita cancelada.")}`);

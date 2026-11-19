@@ -30,6 +30,7 @@ import { requireRole } from "@/lib/auth";
 import { activePatients, isoDaysFromNow } from "@/lib/clinic";
 import { createClient } from "@/lib/supabase/server";
 import { latestVersions, type Appointment, type Vaccination } from "@/lib/types";
+import { PushBanner } from "@/components/push-toggle";
 import { redeemCode } from "./actions";
 
 export const metadata = { title: "Panel clínico" };
@@ -49,6 +50,7 @@ export default async function VetPage({ searchParams }: PageProps<"/vet">) {
     return (
       <div className="mx-auto max-w-xl">
         <PageTitle eyebrow="Panel clínico" title={`Hola, ${session.profile.full_name.split(" ")[0]}`} subtitle={credential} />
+        <PushBanner text="Activa los avisos para saber en cuanto verifiquemos tu cuenta." />
         {status === "rejected" ? (
           <Alert tone="error" title="No pudimos verificar tu cuenta">
             {note ? `Motivo: ${note}. ` : ""}Escríbenos para revisarlo.
@@ -59,8 +61,8 @@ export default async function VetPage({ searchParams }: PageProps<"/vet">) {
             title="Estamos verificando tu cuenta"
             text={
               isStudent
-                ? "Revisamos tu matrícula con la universidad. Te avisaremos por correo cuando se apruebe."
-                : "Revisamos tu cédula profesional en el Registro Nacional de Profesionistas. Te avisaremos por correo cuando se apruebe."
+                ? "Revisamos tu matrícula con la universidad. Te avisaremos cuando se apruebe."
+                : "Revisamos tu cédula profesional en el Registro Nacional de Profesionistas. Te avisaremos cuando se apruebe."
             }
           />
         )}
@@ -120,6 +122,7 @@ export default async function VetPage({ searchParams }: PageProps<"/vet">) {
         }
       />
       <FlashMessages error={query.error} ok={query.ok} />
+      <PushBanner text="Activa los avisos para recibir recordatorios de tus citas." />
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Link href="/escanear" className="group">

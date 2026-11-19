@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireRole } from "@/lib/auth";
 import { demoLabPdf } from "@/lib/demo-pdf";
-import { escapeHtml, sendEmail } from "@/lib/email";
+import { notifyUsers } from "@/lib/push";
 import { friendlyDbError } from "@/lib/forms";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -38,18 +38,15 @@ export async function reviewAccount(formData: FormData) {
   });
   if (error) redirect(`/admin?error=${encodeURIComponent(friendlyDbError(error.message))}`);
 
-  const { data } = await createAdminClient().auth.admin.getUserById(d.user);
-  if (data.user?.email) {
-    const what = d.kind === "vet" ? "tu cédula" : "tu cuenta de estudiante";
-    await sendEmail({
-      to: [data.user.email],
-      subject: d.status === "approved" ? `Verificamos ${what} en Scan-Paw` : `No pudimos verificar ${what} en Scan-Paw`,
-      html:
-        d.status === "approved"
-          ? "<p>Ya puedes abrir expedientes escaneando las placas Scan-Paw.</p>"
-          : `<p>Motivo: ${escapeHtml(d.note || "sin especificar")}</p>`,
-    });
-  }
+  const what = d.kind === "vet" ? "tu cédula" : "tu cuenta de estudiante";
+  await notifyUsers([d.user], {
+    title: d.status === "approved" ? `Verificamos ${what}` : `No pudimos verificar ${what}`,
+    body:
+      d.status === "approved"
+        ? "Ya puedes abrir expedientes escaneando las placas Scan-Paw."
+        : `Motivo: ${d.note || "sin especificar"}`,
+    url: "/vet",
+  });
   revalidatePath("/admin");
   redirect("/admin?ok=Revisi%C3%B3n%20guardada");
 }

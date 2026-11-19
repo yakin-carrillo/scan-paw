@@ -292,7 +292,7 @@ function SummaryTab({ record }: { record: PetRecord }) {
                           <Button
                             variant="ghost"
                             className="min-h-9 px-3 text-xs text-danger"
-                            confirm="¿Cancelar esta cita? Avisaremos a la otra parte por correo."
+                            confirm="¿Cancelar esta cita? Le enviaremos un aviso a la otra parte."
                           >
                             Cancelar
                           </Button>

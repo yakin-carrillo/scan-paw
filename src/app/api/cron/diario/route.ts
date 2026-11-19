@@ -1,7 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { formatDate, formatDateTime } from "@/components/ui";
-import { escapeHtml, ownerEmails, sendEmail } from "@/lib/email";
-import { siteUrl } from "@/lib/env";
+import { notifyUsers, petOwnerIds } from "@/lib/push";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { latestVersions, type Appointment, type Vaccination } from "@/lib/types";
 
@@ -51,38 +50,39 @@ export async function GET(request: NextRequest) {
   const byPet = new Map<string, VaxRow[]>();
   dueVax.forEach((v) => byPet.set(v.pet_id, [...(byPet.get(v.pet_id) ?? []), v]));
 
-  let vaccineMails = 0;
+  let vaccineReminders = 0;
   for (const [petId, items] of byPet) {
-    const name = escapeHtml(items[0].pets.name);
-    const list = items.map((v) => `<li>${escapeHtml(v.vaccine)}: ${formatDate(v.next_due)}</li>`).join("");
-    await sendEmail({
-      to: await ownerEmails(petId),
-      subject: `Vacunas de ${items[0].pets.name} por vencer`,
-      html: `<p>Estas vacunas de <strong>${name}</strong> vencen pronto:</p><ul>${list}</ul>
-             <p><a href="${siteUrl()}/mascotas/${petId}?tab=vacunas">Ver su cartilla en Scan-Paw</a></p>`,
+    const list = items.map((v) => `${v.vaccine} (${formatDate(v.next_due)})`).join(", ");
+    await notifyUsers(await petOwnerIds(petId), {
+      title: `Vacunas de ${items[0].pets.name} por vencer`,
+      body: `Vencen pronto: ${list}. Agenda con su MVZ.`,
+      url: `/mascotas/${petId}?tab=vacunas`,
+      tag: `vacunas-${petId}`,
     });
     await admin.from("reminder_log").insert(items.map((v) => ({ kind: "vacuna", ref_id: v.id })));
-    vaccineMails++;
+    vaccineReminders++;
   }
 
-  let appointmentMails = 0;
+  let appointmentReminders = 0;
   for (const a of (appts ?? []) as Appointment[]) {
     if (sent.has(`cita:${a.id}`)) continue;
-    const to = await ownerEmails(a.pet_id);
-    if (a.clinician_id) {
-      const { data } = await admin.auth.admin.getUserById(a.clinician_id);
-      if (data.user?.email) to.push(data.user.email);
-    }
-    await sendEmail({
-      to,
-      subject: `Recordatorio: cita de ${a.pet_name}`,
-      html: `<p>Cita de <strong>${escapeHtml(a.pet_name)}</strong> el ${escapeHtml(formatDateTime(a.scheduled_at))}
-             con ${escapeHtml(a.clinician_name ?? "su MVZ")}${a.clinic_name ? ` (${escapeHtml(a.clinic_name)})` : ""}.</p>
-             <p>Motivo: ${escapeHtml(a.reason)}</p>`,
+    const when = formatDateTime(a.scheduled_at);
+    const where = `${a.clinician_name ?? "su MVZ"}${a.clinic_name ? ` (${a.clinic_name})` : ""}`;
+    await notifyUsers(await petOwnerIds(a.pet_id), {
+      title: `Recordatorio: cita de ${a.pet_name}`,
+      body: `${when} con ${where}. Motivo: ${a.reason}`,
+      url: `/mascotas/${a.pet_id}`,
     });
+    if (a.clinician_id) {
+      await notifyUsers([a.clinician_id], {
+        title: `Cita con ${a.pet_name}`,
+        body: `${when}. Motivo: ${a.reason}`,
+        url: "/vet/agenda",
+      });
+    }
     await admin.from("reminder_log").insert({ kind: "cita", ref_id: a.id });
-    appointmentMails++;
+    appointmentReminders++;
   }
 
-  return NextResponse.json({ ok: true, vaccineMails, appointmentMails, at: new Date().toISOString() });
+  return NextResponse.json({ ok: true, vaccineReminders, appointmentReminders, at: new Date().toISOString() });
 }

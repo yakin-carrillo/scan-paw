@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PushSettings } from "@/components/push-toggle";
 import { Alert, Badge, Button, ButtonLink, Card, Field, FlashMessages, Input, PageTitle } from "@/components/ui";
 import { requireSession } from "@/lib/auth";
 import { deleteAccount, updateProfile } from "./actions";
@@ -43,6 +44,16 @@ export default async function CuentaPage({ searchParams }: PageProps<"/cuenta">)
             <Button>Guardar</Button>
           </div>
         </form>
+      </Card>
+
+      <Card>
+        <h2 className="font-semibold">Avisos</h2>
+        <p className="mt-1 mb-3 text-sm text-muted">
+          {profile.role === "vet" || profile.role === "student"
+            ? "Te avisamos cuando se verifique tu cuenta, de tus citas y si una familia retira tu acceso."
+            : "Te avisamos si alguien escanea la placa de tu mascota, cuando un MVZ abre su expediente y de sus vacunas y citas."}
+        </p>
+        <PushSettings />
       </Card>
 
       <Card>

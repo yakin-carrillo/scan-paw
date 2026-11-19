@@ -154,7 +154,7 @@ export default async function AgendaPage({ searchParams }: PageProps<"/vet/agend
                               variant="ghost"
                               className="min-h-9 px-3 text-xs text-danger"
                               aria-label="Cancelar cita"
-                              confirm={`¿Cancelar la cita de ${a.pet_name}? Avisaremos al propietario.`}
+                              confirm={`¿Cancelar la cita de ${a.pet_name}? Le enviaremos un aviso al propietario.`}
                             >
                               <X aria-hidden />
                             </Button>

@@ -1,7 +1,7 @@
-// Service worker mínimo de Scan-Paw (v5).
+// Service worker mínimo de Scan-Paw (v6).
 // No guarda en caché páginas ni datos: el expediente clínico siempre se pide
 // a la red para no mostrar información vieja ni dejar datos en el teléfono.
-// Solo muestra una página amable cuando no hay conexión.
+// Muestra una página amable cuando no hay conexión y los avisos push.
 
 const OFFLINE_HTML = `<!doctype html>
 <html lang="es-MX"><head><meta charset="utf-8">
@@ -30,5 +30,43 @@ self.addEventListener("fetch", (event) => {
     fetch(event.request).catch(
       () => new Response(OFFLINE_HTML, { headers: { "Content-Type": "text/html; charset=utf-8" } }),
     ),
+  );
+});
+
+// Avisos push: el servidor envía { title, body, url, tag } (src/lib/push.ts).
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = { body: event.data ? event.data.text() : "" };
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title || "Scan-Paw", {
+      body: data.body || "",
+      icon: "/iconos/192",
+      badge: "/iconos/insignia",
+      tag: data.tag,
+      renotify: Boolean(data.tag),
+      data: { url: data.url || "/" },
+    }),
+  );
+});
+
+// Al tocar el aviso: enfoca una ventana abierta de la app o abre la página indicada.
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const target = new URL(event.notification.data?.url || "/", self.location.origin).href;
+  event.waitUntil(
+    (async () => {
+      const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      const sameOrigin = target.startsWith(self.location.origin);
+      const open = sameOrigin && windows.find((w) => w.url.startsWith(self.location.origin));
+      if (open) {
+        await open.focus();
+        return open.navigate(target);
+      }
+      return self.clients.openWindow(target);
+    })(),
   );
 });

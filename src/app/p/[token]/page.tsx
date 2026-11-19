@@ -3,7 +3,7 @@ import { BadgeCheck, GraduationCap, Lock, MessageCircle, Phone, QrCode, Siren, S
 import { PawMark } from "@/components/logo";
 import { Alert, Button, ButtonLink, Card, FlashMessages, PetAvatar } from "@/components/ui";
 import { getSession } from "@/lib/auth";
-import { escapeHtml, ownerEmails, sendEmail } from "@/lib/email";
+import { notifyUsers, petOwnerIds } from "@/lib/push";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { PublicPet } from "@/lib/types";
@@ -18,7 +18,7 @@ function whatsappNumber(phone: string): string {
   return digits.length === 10 ? `52${digits}` : digits;
 }
 
-/** Registra el escaneo y, si está en modo extraviado, avisa al dueño (máx. 1 correo / 10 min). */
+/** Registra el escaneo y, si está en modo extraviado, avisa al dueño (máx. 1 aviso / 10 min). */
 async function recordPublicScan(token: string, petName: string, lostMode: boolean) {
   try {
     const admin = createAdminClient();
@@ -38,11 +38,11 @@ async function recordPublicScan(token: string, petName: string, lostMode: boolea
 
     await admin.from("scan_events").insert({ tag_id: tag.id, pet_id: tag.pet_id, kind: "publico" });
     if (lostMode) {
-      await sendEmail({
-        to: await ownerEmails(tag.pet_id),
-        subject: `Alguien escaneó la placa de ${petName}`,
-        html: `<p>La placa de <strong>${escapeHtml(petName)}</strong> se acaba de escanear. Si quien la encontró
-               comparte su ubicación, te llegará otro correo con el mapa.</p>`,
+      await notifyUsers(await petOwnerIds(tag.pet_id), {
+        title: `Alguien escaneó la placa de ${petName}`,
+        body: "Si quien la encontró comparte su ubicación, te avisaremos con el mapa.",
+        url: `/mascotas/${tag.pet_id}?tab=accesos`,
+        tag: `escaneo-${tag.pet_id}`,
       });
     }
   } catch (err) {

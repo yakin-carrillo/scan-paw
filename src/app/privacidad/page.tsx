@@ -44,8 +44,9 @@ export default function PrivacidadPage() {
             decide el propietario, su teléfono y la foto de la mascota. El expediente clínico solo lo ven el propietario
             y los médicos veterinarios o estudiantes verificados que escanean la placa o reciben un código del
             propietario, por 7 días (o hasta el día siguiente de una cita agendada). Las entradas de estudiantes se marcan
-            como &quot;No profesionista&quot;. Utilizamos proveedores de infraestructura (Supabase, Vercel, Resend) que tratan los datos por
-            cuenta nuestra.
+            como &quot;No profesionista&quot;. Utilizamos proveedores de infraestructura (Supabase, Vercel) que tratan los datos por cuenta
+            nuestra. Los avisos se envían como notificaciones push a través del servicio de tu navegador (Google, Apple o
+            Mozilla), cifradas de extremo a extremo, y solo a los dispositivos donde los activaste.
           </p>
         </section>
         <section>

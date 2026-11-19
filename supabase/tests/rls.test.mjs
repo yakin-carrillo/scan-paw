@@ -473,6 +473,27 @@ await test("una mascota fallecida no puede quedar en modo extraviado", () =>
       "pets_lost_only_if_alive",
     )));
 
+console.log("\nNotificaciones push");
+await test("cada usuario registra y ve solo sus dispositivos", async () => {
+  await as(owner, () =>
+    db.query("insert into public.push_subscriptions (endpoint, p256dh, auth) values ('https://push.example/a', 'k', 'x')"));
+  const mine = await as(owner, () => db.query("select user_id from public.push_subscriptions"));
+  assert(mine.rows.length === 1 && mine.rows[0].user_id === owner, JSON.stringify(mine.rows));
+  const theirs = await as(other, () => db.query("select id from public.push_subscriptions"));
+  assert(theirs.rows.length === 0, "otro usuario vio dispositivos ajenos");
+});
+await test("no se puede registrar un dispositivo a nombre de otro", () =>
+  as(other, () =>
+    expectError(
+      db.query("insert into public.push_subscriptions (user_id, endpoint, p256dh, auth) values ($1, 'https://push.example/b', 'k', 'x')", [owner]),
+      "row-level security",
+    )));
+await test("solo se aceptan endpoints https y anónimo no tiene acceso", async () => {
+  await as(owner, () =>
+    expectError(db.query("insert into public.push_subscriptions (endpoint, p256dh, auth) values ('http://inseguro', 'k', 'x')"), "check constraint"));
+  await as(null, () => expectError(db.query("select * from public.push_subscriptions"), "permission denied"));
+});
+
 console.log("\nRevocación de placa");
 await test("al revocar la placa, la vista pública ya no muestra datos", async () => {
   await as(owner, () => db.query("select public.revoke_tag($1)", [tag.id]));

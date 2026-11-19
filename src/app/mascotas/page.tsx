@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ChevronRight, PawPrint, Plus, QrCode, Siren } from "lucide-react";
+import { PushBanner } from "@/components/push-toggle";
 import { Badge, ButtonLink, Card, EmptyState, FlashMessages, PageTitle, PetAvatar, speciesLabel } from "@/components/ui";
 import { requireSession } from "@/lib/auth";
 import { petAge } from "@/lib/pets";
@@ -50,6 +51,9 @@ export default async function MascotasPage({ searchParams }: PageProps<"/mascota
         }
       />
       <FlashMessages error={params.error} ok={params.ok} />
+      {pets.length > 0 && (
+        <PushBanner text="Activa los avisos para saber al instante si alguien escanea la placa de tu mascota o abre su expediente." />
+      )}
       {pets.length === 0 ? (
         <EmptyState
           icon={PawPrint}

@@ -5,7 +5,7 @@ import { SUPABASE_URL } from "@/lib/env";
 /**
  * Cliente con la clave secreta: SALTA RLS.
  * Úsalo solo en el servidor y solo para tareas que el usuario no puede hacer
- * por sí mismo (registrar escaneos anónimos, leer correos para avisos, firmar
+ * por sí mismo (registrar escaneos anónimos, enviar avisos push, firmar
  * la foto pública). Nunca lo uses para leer expedientes.
  */
 export function createAdminClient() {

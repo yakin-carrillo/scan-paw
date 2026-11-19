@@ -23,6 +23,19 @@ function symbol(small: boolean): string {
   return `<g fill='none' stroke='${CORAL}' stroke-width='30' stroke-linecap='round' stroke-linejoin='round'>${FRAME}</g><g fill='${ARENA}'>${PAW}</g>`;
 }
 
+/** Insignia monocroma de los avisos en Android: huella blanca sobre fondo transparente. */
+export function brandBadge(size: number) {
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='132 134 248 232'><g fill='#ffffff'>${PAW}</g></svg>`;
+  const src = `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
+  return new ImageResponse(
+    (
+      // eslint-disable-next-line @next/next/no-img-element -- ImageResponse dibuja <img> con data URI
+      <img src={src} width={size} height={size} alt="" />
+    ),
+    { width: size, height: size },
+  );
+}
+
 /**
  * Íconos PNG de la app (favicon, Apple, manifest) a partir del logo vectorial.
  * `padded` deja el símbolo dentro de la zona segura de los íconos "maskable".

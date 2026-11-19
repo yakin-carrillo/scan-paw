@@ -2,8 +2,8 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { clinicianCredential, escapeHtml, ownerEmails, sendEmail } from "@/lib/email";
 import { friendlyDbError } from "@/lib/forms";
+import { clinicianCredential, notifyUsers, petOwnerIds } from "@/lib/push";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { requireSession } from "@/lib/auth";
@@ -20,14 +20,10 @@ export async function vetOpenRecord(token: string) {
     redirect(`/p/${t}?error=${encodeURIComponent(friendlyDbError(error?.message))}`);
   }
 
-  await sendEmail({
-    to: await ownerEmails(petId),
-    subject: session.student
-      ? "Un estudiante de veterinaria abrió el expediente de tu mascota"
-      : "Un médico veterinario abrió el expediente de tu mascota",
-    html: `<p><strong>${escapeHtml(session.profile.full_name)}</strong> ${clinicianCredential(session)} escaneó la placa
-           y tiene acceso al expediente por 7 días.</p>
-           <p>Si no reconoces este acceso, revisa la pestaña "Accesos" de tu mascota en Scan-Paw.</p>`,
+  await notifyUsers(await petOwnerIds(petId), {
+    title: session.student ? "Un estudiante abrió el expediente" : "Un MVZ abrió el expediente",
+    body: `${session.profile.full_name} (${clinicianCredential(session)}) escaneó la placa y tiene acceso por 7 días. ¿No lo reconoces? Retíralo en Accesos.`,
+    url: `/mascotas/${petId}?tab=accesos`,
   });
 
   redirect(`/mascotas/${petId}`);
@@ -73,11 +69,11 @@ export async function shareFinderLocation(token: string, coords: { latitude: num
     longitude: lng,
   });
 
-  await sendEmail({
-    to: await ownerEmails(tag.pet_id),
-    subject: `Alguien encontró a ${pet.name} y compartió su ubicación`,
-    html: `<p>Quien escaneó la placa de <strong>${escapeHtml(pet.name)}</strong> compartió su ubicación:</p>
-           <p><a href="https://maps.google.com/?q=${lat},${lng}">Ver en el mapa</a></p>`,
+  await notifyUsers(await petOwnerIds(tag.pet_id), {
+    title: `Alguien encontró a ${pet.name}`,
+    body: "Quien escaneó su placa compartió su ubicación. Toca para ver el mapa.",
+    url: `https://maps.google.com/?q=${lat},${lng}`,
+    tag: `ubicacion-${tag.pet_id}`,
   });
   return { ok: true };
 }

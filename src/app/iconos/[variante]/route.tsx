@@ -1,10 +1,11 @@
-import { brandIcon } from "@/lib/brand-icon";
+import { brandBadge, brandIcon } from "@/lib/brand-icon";
 
-/** Íconos del manifest: /iconos/192, /iconos/512 y /iconos/maskable. */
+/** Íconos del manifest (/iconos/192, /512, /maskable) y la insignia de los avisos (/iconos/insignia). */
 const VARIANTS = {
   "192": () => brandIcon(192, { rounded: true }),
   "512": () => brandIcon(512, { rounded: true }),
   maskable: () => brandIcon(512, { padded: true }),
+  insignia: () => brandBadge(96),
 } as const;
 
 export function generateStaticParams() {

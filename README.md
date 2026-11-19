@@ -7,7 +7,7 @@ Historial clínico universal de perros y gatos, ligado a una placa con código Q
 - **Médicos veterinarios (MVZ) verificados**: escanean la placa (o capturan un código del dueño) y obtienen acceso al expediente por **7 días**. Todo lo que registran queda firmado con su nombre y cédula, y el dueño recibe un aviso.
 - **Administración**: revisa cédulas y genera lotes de placas para grabado.
 
-Stack: **Next.js 16** (App Router, Server Actions) en **Vercel** + **Supabase** (Postgres con RLS, Auth y Storage) + **Resend** para correos. Todo funciona en los planes gratuitos.
+Stack: **Next.js 16** (App Router, Server Actions) en **Vercel** + **Supabase** (Postgres con RLS, Auth y Storage) + **Web Push** (notificaciones de la app instalada) para los avisos. Todo funciona en los planes gratuitos.
 
 ---
 
@@ -24,7 +24,7 @@ src/
     admin/           verificación de cédulas y lotes de placas (+ CSV)
     cuenta/          perfil, contraseña, exportar datos, eliminar cuenta
     api/             QR en SVG, anexos con URL firmada, cron diario
-  lib/               sesión, clientes Supabase, correo, validación, QR
+  lib/               sesión, clientes Supabase, avisos push, validación, QR
   proxy.ts           refresca la sesión y protege rutas privadas
 supabase/
   migrations/        esquema, RLS, funciones y buckets
@@ -37,7 +37,7 @@ supabase/
 - El rol anónimo **no puede leer ninguna tabla**. La página pública usa `get_public_pet(token)`, que devuelve solo lo que el dueño permite.
 - Las entradas clínicas son **inmutables**. Una corrección es una nueva fila con `amends_id`. El origen (MVZ o propietario) y la firma los asigna un trigger, nunca el cliente.
 - El administrador **no puede leer expedientes**.
-- La clave secreta de Supabase solo se usa en el servidor: para registrar escaneos anónimos, obtener correos para los avisos, firmar la foto pública y eliminar cuentas.
+- La clave secreta de Supabase solo se usa en el servidor: para registrar escaneos anónimos, enviar avisos push, firmar la foto pública y eliminar cuentas.
 
 ---
 
@@ -86,13 +86,22 @@ npm run build
    4. Mientras la pantalla de consentimiento esté en modo *Prueba*, solo podrán entrar los correos que agregues como usuarios de prueba. Para abrirla a todos, publícala; con los permisos básicos no requiere verificación de Google.
 5. **Project Settings → API Keys**: copia la URL, la *publishable key* y la *secret key*.
 
-Con Google ya no hace falta configurar SMTP en Supabase. Resend solo se usa, de forma opcional, para los avisos de escaneo y de acceso al expediente.
+Con Google ya no hace falta configurar SMTP en Supabase. La app no envía correos.
 
-### 2. Resend
+### 2. Avisos push (Web Push)
 
-1. Crea una cuenta en <https://resend.com> (gratis: 3 000 correos al mes, 100 al día).
-2. Verifica un dominio propio. Sin dominio solo puedes enviarte correos a ti mismo.
-3. Crea una API key.
+Todos los avisos (escaneos, ubicación, accesos de MVZ, citas, vacunas y verificación de cuentas) son
+notificaciones push. Cada persona las activa en **Cuenta → Avisos** en cada dispositivo.
+
+1. Genera un par de llaves VAPID (una sola vez):
+   ```powershell
+   npx web-push generate-vapid-keys
+   ```
+2. Guarda la pública en `NEXT_PUBLIC_VAPID_PUBLIC_KEY` y la privada en `VAPID_PRIVATE_KEY` (tabla de abajo).
+   Si cambias las llaves, todos tendrán que volver a activar los avisos.
+
+Compatibilidad: Chrome, Edge y Firefox (también en Android sin instalar la app) y Safari en macOS. En
+**iPhone** requiere iOS 16.4 o posterior y que la app esté **agregada a la pantalla de inicio**.
 
 ### 3. Vercel
 
@@ -106,8 +115,8 @@ Con Google ya no hace falta configurar SMTP en Supabase. Resend solo se usa, de 
    | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | publishable key |
    | `SUPABASE_SECRET_KEY` | secret key (**no** pública) |
    | `NEXT_PUBLIC_SITE_URL` | `https://TU-APP.vercel.app`, sin `/` final. Es la URL que llevan los QR |
-   | `RESEND_API_KEY` | API key de Resend |
-   | `EMAIL_FROM` | `Scan-Paw <avisos@tu-dominio.com>` |
+   | `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | llave pública VAPID |
+   | `VAPID_PRIVATE_KEY` | llave privada VAPID (**no** pública) |
    | `CRON_SECRET` | valor largo y aleatorio |
 
 4. Despliega. El cron diario (`vercel.json`) llama a `/api/cron/diario` para que Supabase no pause el proyecto por inactividad.
@@ -148,7 +157,7 @@ Especificación sugerida: QR de al menos 2.5 × 2.5 cm, corrección de errores Q
 | Supabase | 500 MB de base de datos, 1 GB de archivos | Fotos comprimidas en el navegador; anexos de máximo 5 MB |
 | Supabase | Sin respaldos descargables | Workflow semanal de `pg_dump` |
 | Vercel Hobby | Solo uso **no comercial** | Pasar a Pro antes de cobrar membresías |
-| Resend | 100 correos al día | Avisos de escaneo limitados a 1 cada 10 min por placa |
+| Web Push | Sin costo; la entrega depende del teléfono (ahorro de batería) | Avisos de escaneo limitados a 1 cada 10 min por placa |
 
 ---
 
@@ -158,7 +167,7 @@ Especificación sugerida: QR de al menos 2.5 × 2.5 cm, corrección de errores Q
 - [x] Mascotas: alta, edición, foto, fallecimiento
 - [x] Expediente: identificación, vacunas, alergias y padecimientos crónicos, anexos; entradas firmadas e inmutables con enmiendas
 - [x] Placas: lotes, CSV, QR en SVG, activación, revocación
-- [x] Página pública, privacidad configurable, modo extraviado, aviso por correo, ubicación opcional de quien encuentra la mascota
+- [x] Página pública, privacidad configurable, modo extraviado, aviso push, ubicación opcional de quien encuentra la mascota
 - [x] Acceso MVZ por escaneo o por código del dueño (7 días), bitácora de accesos y escaneos
 - [x] Administración: revisión de cédulas con alerta de cédula repetida
 - [x] Exportar datos (JSON) y eliminar cuenta (derechos ARCO)
@@ -177,7 +186,7 @@ Especificación sugerida: QR de al menos 2.5 × 2.5 cm, corrección de errores Q
 - [x] Portal de clínica: agenda de citas (`/vet/agenda`), vacunas por vencer de los pacientes, "Preparar consulta"
 - [x] Al agendar una cita, el acceso del clínico se extiende hasta el día siguiente a la cita (el dueño recibe aviso)
 - [x] Membresía por mascota en modo demostración (sin cobro); precios de referencia en `src/lib/plans.ts`
-- [x] Recordatorios por correo de vacunas (7 días antes) y citas (36 h antes) desde el cron diario
+- [x] Recordatorios push de vacunas (7 días antes) y citas (36 h antes) desde el cron diario
 - [x] Límite de 10 intentos fallidos por hora al activar placas y canjear códigos
 - [x] Datos de demostración desde `/admin` (Luna y Michi, una placa activa y otra para activar en vivo)
 - [x] Vercel Web Analytics y prueba de humo `npm run test:smoke`
