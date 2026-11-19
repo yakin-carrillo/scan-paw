@@ -4,24 +4,23 @@ const INDIGO = "#262a6b";
 const CORAL = "#ff6f59";
 const ARENA = "#f6f1ea";
 
-const TOES = [
-  "<rect x='124' y='194' width='60' height='68' rx='23' transform='rotate(-24 154 228)'/>",
-  "<rect x='188' y='134' width='60' height='70' rx='23' transform='rotate(-8 218 169)'/>",
-  "<rect x='264' y='134' width='60' height='70' rx='23' transform='rotate(8 294 169)'/>",
-  "<rect x='328' y='194' width='60' height='68' rx='23' transform='rotate(24 358 228)'/>",
-].join("");
-const HEART =
-  "M256 398c-17-11-90-53-90-106 0-30 22-51 49-51 18 0 32 9 41 23 9-14 23-23 41-23 27 0 49 21 49 51 0 53-73 95-90 106z";
+// Mismas formas que brand/scanpaw-icono.svg (caja de 512).
+const PAW =
+  "<ellipse cx='171' cy='246' rx='28' ry='40' transform='rotate(-32 171 246)'/>" +
+  "<ellipse cx='219' cy='182' rx='30' ry='42' transform='rotate(-12 219 182)'/>" +
+  "<ellipse cx='293' cy='182' rx='30' ry='42' transform='rotate(12 293 182)'/>" +
+  "<ellipse cx='341' cy='246' rx='28' ry='40' transform='rotate(32 341 246)'/>" +
+  "<path d='M256 255C283 255 303 270 317 289C326 302 333 316 338 328C344 344 339 361 322 361C305 361 285 346 256 346C227 346 207 361 190 361C173 361 168 344 174 328C179 316 186 302 195 289C209 270 229 255 256 255Z'/>";
 const FRAME =
-  "<path d='M96 168V128a32 32 0 0 1 32-32h40'/><path d='M344 96h40a32 32 0 0 1 32 32v40'/><path d='M416 344v40a32 32 0 0 1-32 32h-40'/><path d='M168 416h-40a32 32 0 0 1-32-32v-40'/>";
+  "<path d='M66 165V66H165'/><path d='M347 66H446V165'/><path d='M446 347V446H347'/><path d='M165 446H66V347'/>";
 
 /** Contenido del ícono en la caja de 512 (igual que brand/scanpaw-icono.svg y scanpaw-favicon.svg). */
 function symbol(small: boolean): string {
   if (small) {
-    // Hasta 64 px: sin visor, huella más grande y corazón coral.
-    return `<g transform='translate(256 262) scale(1.38) translate(-256 -266)'><g fill='${ARENA}'>${TOES}</g><path fill='${CORAL}' d='${HEART}'/></g>`;
+    // Hasta 64 px: sin visor y con la huella más grande.
+    return `<g fill='${ARENA}' transform='translate(256 256) scale(1.6) translate(-256 -251)'>${PAW}</g>`;
   }
-  return `<g fill='none' stroke='${CORAL}' stroke-width='22' stroke-linecap='round' stroke-linejoin='round'>${FRAME}</g><g fill='${ARENA}'>${TOES}<path d='${HEART}'/></g>`;
+  return `<g fill='none' stroke='${CORAL}' stroke-width='30' stroke-linecap='round' stroke-linejoin='round'>${FRAME}</g><g fill='${ARENA}'>${PAW}</g>`;
 }
 
 /**

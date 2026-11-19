@@ -1,37 +1,47 @@
 import { cx } from "./button-styles";
 
 /*
- * Símbolo de Scan-Paw (guía de identidad 1.0): huella con dedos como módulos
- * de QR y almohadilla de corazón, dentro de un visor de escaneo.
- * Mismas coordenadas que brand/scanpaw-icono.svg (caja de 512).
+ * Símbolo de Scan-Paw (guía de identidad 1.1): huella dentro de un visor de
+ * escaneo con extremos redondeados. Mismas coordenadas que
+ * brand/scanpaw-icono.svg (caja de 512).
  */
 const TOES = [
-  { x: 124, y: 194, h: 68, r: -24, cx: 154, cy: 228 },
-  { x: 188, y: 134, h: 70, r: -8, cx: 218, cy: 169 },
-  { x: 264, y: 134, h: 70, r: 8, cx: 294, cy: 169 },
-  { x: 328, y: 194, h: 68, r: 24, cx: 358, cy: 228 },
+  { cx: 171, cy: 246, rx: 28, ry: 40, rot: -32 },
+  { cx: 219, cy: 182, rx: 30, ry: 42, rot: -12 },
+  { cx: 293, cy: 182, rx: 30, ry: 42, rot: 12 },
+  { cx: 341, cy: 246, rx: 28, ry: 40, rot: 32 },
 ];
-export const HEART_PATH =
-  "M256 398c-17-11-90-53-90-106 0-30 22-51 49-51 18 0 32 9 41 23 9-14 23-23 41-23 27 0 49 21 49 51 0 53-73 95-90 106z";
-const FRAME_PATHS = [
-  "M96 168V128a32 32 0 0 1 32-32h40",
-  "M344 96h40a32 32 0 0 1 32 32v40",
-  "M416 344v40a32 32 0 0 1-32 32h-40",
-  "M168 416h-40a32 32 0 0 1-32-32v-40",
-];
+/** Almohadilla principal: domo arriba y dos lóbulos abajo, simétrica. */
+export const PAD_PATH =
+  "M256 255C283 255 303 270 317 289C326 302 333 316 338 328C344 344 339 361 322 361C305 361 285 346 256 346C227 346 207 361 190 361C173 361 168 344 174 328C179 316 186 302 195 289C209 270 229 255 256 255Z";
+const FRAME_PATHS = ["M66 165V66H165", "M347 66H446V165", "M446 347V446H347", "M165 446H66V347"];
 
-function Toes() {
-  return TOES.map((t) => (
-    <rect key={t.x} x={t.x} y={t.y} width={60} height={t.h} rx={23} transform={`rotate(${t.r} ${t.cx} ${t.cy})`} />
-  ));
+function Paw() {
+  return (
+    <>
+      {TOES.map((t) => (
+        <ellipse key={t.cx} cx={t.cx} cy={t.cy} rx={t.rx} ry={t.ry} transform={`rotate(${t.rot} ${t.cx} ${t.cy})`} />
+      ))}
+      <path d={PAD_PATH} />
+    </>
+  );
+}
+
+function Frame({ color }: { color: string }) {
+  return (
+    <g fill="none" stroke={color} strokeWidth={30} strokeLinecap="round" strokeLinejoin="round">
+      {FRAME_PATHS.map((d) => (
+        <path key={d} d={d} />
+      ))}
+    </g>
+  );
 }
 
 /** Huella sola, en el color del texto (para sellos e íconos pequeños). */
 export function PawMark({ className }: { className?: string }) {
   return (
-    <svg viewBox="112 124 288 284" aria-hidden className={className} fill="currentColor">
-      <Toes />
-      <path d={HEART_PATH} />
+    <svg viewBox="132 134 248 232" aria-hidden className={className} fill="currentColor">
+      <Paw />
     </svg>
   );
 }
@@ -39,15 +49,10 @@ export function PawMark({ className }: { className?: string }) {
 /** Símbolo completo: visor coral y huella en el color del texto. */
 export function BrandSymbol({ className }: { className?: string }) {
   return (
-    <svg viewBox="80 80 352 352" aria-hidden className={className}>
-      <g fill="none" stroke="var(--coral)" strokeWidth={22} strokeLinecap="round" strokeLinejoin="round">
-        {FRAME_PATHS.map((d) => (
-          <path key={d} d={d} />
-        ))}
-      </g>
+    <svg viewBox="46 46 420 420" aria-hidden className={className}>
+      <Frame color="var(--coral)" />
       <g fill="currentColor">
-        <Toes />
-        <path d={HEART_PATH} />
+        <Paw />
       </g>
     </svg>
   );
@@ -58,14 +63,9 @@ export function AppIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 512 512" aria-hidden className={cx("shrink-0", className)}>
       <rect width={512} height={512} rx={116} fill="#262a6b" />
-      <g fill="none" stroke="#ff6f59" strokeWidth={22} strokeLinecap="round" strokeLinejoin="round">
-        {FRAME_PATHS.map((d) => (
-          <path key={d} d={d} />
-        ))}
-      </g>
+      <Frame color="#ff6f59" />
       <g fill="#f6f1ea">
-        <Toes />
-        <path d={HEART_PATH} />
+        <Paw />
       </g>
     </svg>
   );

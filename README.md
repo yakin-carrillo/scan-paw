@@ -169,7 +169,7 @@ Especificación sugerida: QR de al menos 2.5 × 2.5 cm, corrección de errores Q
 
 ## Preparación de la demo (Hito 2 parcial)
 
-- [x] Identidad de marca 1.0: logo de huella con corazón en un visor de escaneo (SVG en `brand/`), paleta Índigo Guardián, Coral Latido, Menta Vital y Arena, tipografías Sora, Figtree y JetBrains Mono, íconos Lucide (sin emojis)
+- [x] Identidad de marca 1.2: logo de huella dentro de un visor de escaneo (SVG en `brand/`), paleta Índigo Guardián, Coral Latido, Menta Vital y Arena, tipografías Sora, Figtree y JetBrains Mono, íconos Lucide (sin emojis)
 - [x] Escáner QR dentro de la app (`/escanear`): BarcodeDetector en Android, jsQR en iPhone, captura manual del código
 - [x] Resumen clínico imprimible / PDF (`/mascotas/[id]/resumen`) y cartel "Se busca" (`/mascotas/[id]/cartel`)
 - [x] Modo extraviado con un toque desde el expediente; página pública con aviso destacado
