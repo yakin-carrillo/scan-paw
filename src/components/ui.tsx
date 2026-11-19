@@ -1,31 +1,11 @@
 import Link from "next/link";
 import type { ComponentProps, ReactNode } from "react";
 import { ArrowLeft, Cat, CircleCheck, Dog, Info, TriangleAlert, type LucideIcon } from "lucide-react";
+import { buttonBase, buttonStyles, cx, sizes, type Variant } from "./button-styles";
+import { CleanFlashParams } from "./clean-url";
 
-export const cx = (...parts: (string | false | null | undefined)[]) => parts.filter(Boolean).join(" ");
-
-const buttonStyles = {
-  primary: "bg-brand text-brand-ink shadow-sm hover:bg-brand-strong",
-  secondary: "border border-border bg-surface text-foreground hover:border-brand/40 hover:bg-brand-soft",
-  accent: "bg-accent text-white shadow-sm hover:brightness-95 dark:text-black",
-  danger: "bg-danger text-white shadow-sm hover:brightness-95 dark:text-black",
-  ghost: "text-foreground hover:bg-brand-soft",
-};
-
-type Variant = keyof typeof buttonStyles;
-const sizes = { md: "min-h-11 px-4 text-sm", lg: "min-h-13 px-5 text-base" };
-
-const buttonBase =
-  "inline-flex items-center justify-center gap-2 rounded-xl font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-[1.15em] [&_svg]:shrink-0";
-
-export function Button({
-  variant = "primary",
-  size = "md",
-  className,
-  ...props
-}: ComponentProps<"button"> & { variant?: Variant; size?: keyof typeof sizes }) {
-  return <button className={cx(buttonBase, sizes[size], buttonStyles[variant], className)} {...props} />;
-}
+export { cx } from "./button-styles";
+export { Button } from "./button";
 
 export function ButtonLink({
   variant = "primary",
@@ -243,7 +223,12 @@ export function FlashMessages({ error, ok }: { error?: string | string[]; ok?: s
   const e = Array.isArray(error) ? error[0] : error;
   const o = Array.isArray(ok) ? ok[0] : ok;
   if (!e && !o) return null;
-  return <div className="mb-4">{e ? <Alert tone="error">{e}</Alert> : <Alert tone="success">{o}</Alert>}</div>;
+  return (
+    <div className="mb-4">
+      {e ? <Alert tone="error">{e}</Alert> : <Alert tone="success">{o}</Alert>}
+      <CleanFlashParams key={e ?? o} />
+    </div>
+  );
 }
 
 export function formatDate(value: string | null | undefined): string {

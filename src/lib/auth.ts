@@ -86,3 +86,8 @@ export async function requireRole(roles: UserRole[]): Promise<Session> {
 export function isClinicianRole(role: UserRole | undefined): boolean {
   return role === "vet" || role === "student";
 }
+
+/** Pantalla de inicio según el tipo de cuenta. */
+export function homePath(role: UserRole | undefined): string {
+  return isClinicianRole(role) ? "/vet" : "/mascotas";
+}

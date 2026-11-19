@@ -8,6 +8,8 @@ import { firstError, formObject, friendlyDbError, optionalDate, optionalText } f
 import { createClient } from "@/lib/supabase/server";
 
 const uuid = z.uuid();
+/** Nombre de archivo que generan los cargadores del navegador (crypto.randomUUID()). */
+const UUID_FILE = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 
 function back(petId: string, tab: string, params: { error?: string; ok?: string }): never {
   const qs = new URLSearchParams({ tab, ...params });
@@ -76,10 +78,11 @@ export async function updatePublicSettings(petId: string, formData: FormData) {
   uuid.parse(petId);
   const lostMessage = String(formData.get("lost_message") ?? "").trim().slice(0, 280);
   const supabase = await createClient();
+  const { data: pet } = await supabase.from("pets").select("status").eq("id", petId).maybeSingle();
   const { error } = await supabase
     .from("pets")
     .update({
-      lost_mode: formData.get("lost_mode") === "on",
+      lost_mode: pet?.status === "activo" && formData.get("lost_mode") === "on",
       lost_message: lostMessage || null,
       show_phone: formData.get("show_phone") === "on",
       show_photo: formData.get("show_photo") === "on",
@@ -108,7 +111,9 @@ export async function markDeceased(petId: string, formData: FormData) {
 /** Se llama después de subir la foto desde el navegador directo a Storage. */
 export async function setPetPhoto(petId: string, path: string) {
   uuid.parse(petId);
-  if (!path.startsWith(`${petId}/`)) throw new Error("Ruta de foto no válida");
+  if (typeof path !== "string" || !new RegExp(`^${petId}/${UUID_FILE}[.]jpg$`).test(path)) {
+    return { error: "Ruta de foto no válida." };
+  }
   const supabase = await createClient();
   const { data: pet } = await supabase.from("pets").select("photo_path").eq("id", petId).maybeSingle();
   const { error } = await supabase.from("pets").update({ photo_path: path }).eq("id", petId);
@@ -201,7 +206,9 @@ export async function registerAttachment(petId: string, input: z.input<typeof at
   const parsed = attachmentSchema.safeParse(input);
   if (!parsed.success) return { error: firstError(parsed.error) };
   const d = parsed.data;
-  if (!d.path.startsWith(`${petId}/`)) return { error: "Ruta de archivo no válida." };
+  if (!new RegExp(`^${petId}/${UUID_FILE}[.](pdf|jpg|png|webp)$`).test(d.path)) {
+    return { error: "Ruta de archivo no válida." };
+  }
 
   const supabase = await createClient();
   const { error } = await supabase.from("attachments").insert({
@@ -229,7 +236,18 @@ export async function createShareCode(petId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("create_share_code", { p_pet: petId });
   if (error) back(petId, "accesos", { error: friendlyDbError(error.message) });
-  back(petId, "accesos", { ok: `Código para tu MVZ: ${data} (válido 24 h, un solo uso).` });
+  redirect(`/mascotas/${petId}?${new URLSearchParams({ tab: "accesos", codigo: String(data) })}`);
+}
+
+/** El dueño retira el acceso de un MVZ o estudiante (también cancela sus citas pendientes). */
+export async function revokeClinicianAccess(petId: string, clinicianId: string) {
+  uuid.parse(petId);
+  uuid.parse(clinicianId);
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("owner_revoke_access", { p_pet: petId, p_clinician: clinicianId });
+  if (error) back(petId, "accesos", { error: friendlyDbError(error.message) });
+  revalidatePath(`/mascotas/${petId}`);
+  back(petId, "accesos", { ok: "Acceso retirado. Ya no puede ver el expediente." });
 }
 
 export async function revokeTag(petId: string, tagId: string) {
@@ -245,6 +263,7 @@ export async function revokeTag(petId: string, tagId: string) {
 /** Activa o desactiva el modo extraviado con un solo toque. */
 export async function toggleLostMode(petId: string, enable: boolean) {
   uuid.parse(petId);
+  z.boolean().parse(enable);
   const supabase = await createClient();
   const { error } = await supabase.from("pets").update({ lost_mode: enable }).eq("id", petId);
   if (error) back(petId, "identificacion", { error: friendlyDbError(error.message) });

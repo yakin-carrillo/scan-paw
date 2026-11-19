@@ -26,7 +26,7 @@ export default async function CartelPage({ params }: PageProps<"/mascotas/[id]/c
       </div>
 
       <article className="flex flex-col items-center gap-5 rounded-2xl border border-border bg-surface p-8 text-center shadow-card print:border-0 print:p-0 print:shadow-none">
-        <p className="w-full rounded-xl bg-danger py-3 font-display text-4xl font-bold tracking-wide text-white uppercase sm:text-5xl print:text-6xl">
+        <p className="w-full rounded-xl bg-danger py-3 font-display text-4xl font-bold tracking-wide text-danger-ink uppercase sm:text-5xl print:text-6xl">
           Se busca
         </p>
         <PetAvatar species={pet.species} name={pet.name} photoUrl={r.photoUrl} size="xl" />

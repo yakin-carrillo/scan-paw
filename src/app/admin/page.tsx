@@ -157,7 +157,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
                     <Button name="status" value="approved">
                       Aprobar
                     </Button>
-                    <Button name="status" value="rejected" variant="danger">
+                    <Button name="status" value="rejected" variant="danger" confirm={`¿Rechazar la solicitud de ${v.name}?`}>
                       Rechazar
                     </Button>
                   </form>
@@ -218,7 +218,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
             </form>
             {Boolean(demoPets) && (
               <form action={resetDemo}>
-                <Button variant="ghost" className="text-danger">
+                <Button variant="ghost" className="text-danger" confirm="¿Borrar las mascotas y placas de demostración?">
                   <RotateCcw aria-hidden /> Borrar demo
                 </Button>
               </form>

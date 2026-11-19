@@ -11,7 +11,10 @@ const MAX_BYTES = 5 * 1024 * 1024;
 
 /** Reduce una imagen a máx. `maxSide` px en JPEG para ahorrar almacenamiento. */
 async function compressImage(file: File, maxSide: number, quality = 0.82): Promise<Blob> {
-  const bitmap = await createImageBitmap(file);
+  const bitmap = await createImageBitmap(file).catch(() => {
+    // p. ej. HEIC en navegadores que no lo decodifican
+    throw new Error("No pudimos leer esa imagen. Intenta con una foto JPG o PNG.");
+  });
   const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
   const canvas = document.createElement("canvas");
   canvas.width = Math.round(bitmap.width * scale);
@@ -29,7 +32,8 @@ export function PhotoUploader({ petId }: { petId: string }) {
   const [pending, startTransition] = useTransition();
 
   function onChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
+    const input = e.target;
+    const file = input.files?.[0];
     if (!file) return;
     setError(null);
     startTransition(async () => {
@@ -46,6 +50,8 @@ export function PhotoUploader({ petId }: { petId: string }) {
         router.refresh();
       } catch (err) {
         setError(err instanceof Error ? err.message : "No se pudo subir la foto.");
+      } finally {
+        input.value = ""; // permite volver a elegir el mismo archivo
       }
     });
   }

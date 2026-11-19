@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { Lock, ShieldCheck, Stethoscope } from "lucide-react";
 import { PawMark } from "@/components/logo";
 import { Card, FlashMessages } from "@/components/ui";
-import { getSession } from "@/lib/auth";
+import { getSession, homePath } from "@/lib/auth";
 import { safeNext } from "@/lib/forms";
 import { signInWithGoogle } from "../actions";
 
@@ -28,8 +28,9 @@ const points = [
 
 export default async function EntrarPage({ searchParams }: PageProps<"/entrar">) {
   const params = await searchParams;
-  const next = safeNext(params.next);
-  if (await getSession()) redirect(next);
+  const next = safeNext(params.next, "");
+  const session = await getSession();
+  if (session) redirect(next || homePath(session.profile.role));
 
   return (
     <div className="mx-auto grid max-w-4xl items-stretch gap-5 sm:pt-4 md:grid-cols-2">

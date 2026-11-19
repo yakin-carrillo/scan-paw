@@ -37,6 +37,8 @@ import {
   speciesLabel,
   Textarea,
 } from "@/components/ui";
+import { CleanFlashParams } from "@/components/clean-url";
+import { CopyButton } from "@/components/copy-button";
 import { AttachmentUploader, PhotoUploader } from "@/components/uploaders";
 import { siteUrl } from "@/lib/env";
 import { loadPetRecord, petAge, vaccineStatus, type PetRecord } from "@/lib/pets";
@@ -46,6 +48,7 @@ import {
   addVaccination,
   createShareCode,
   markDeceased,
+  revokeClinicianAccess,
   revokeTag,
   setAppointmentStatus,
   toggleLostMode,
@@ -77,6 +80,7 @@ export default async function PetPage({ params, searchParams }: PageProps<"/masc
   const age = petAge(pet.birth_date);
   const alive = pet.status === "activo";
   const member = membershipActive(record.membership);
+  const shareCode = typeof query.codigo === "string" && /^[0-9A-Z]{6}$/.test(query.codigo) ? query.codigo : null;
 
   return (
     <div className="flex flex-col gap-5">
@@ -191,7 +195,7 @@ export default async function PetPage({ params, searchParams }: PageProps<"/masc
       {tab === "condiciones" && <ConditionsTab record={record} />}
       {tab === "anexos" && <AttachmentsTab record={record} />}
       {tab === "placa" && isOwner && <TagTab record={record} />}
-      {tab === "accesos" && isOwner && <AccessTab record={record} />}
+      {tab === "accesos" && isOwner && <AccessTab record={record} code={shareCode} />}
     </div>
   );
 }
@@ -285,7 +289,11 @@ function SummaryTab({ record }: { record: PetRecord }) {
                       )}
                       {(isOwner || a.clinician_id === me) && (
                         <form action={setAppointmentStatus.bind(null, pet.id, a.id, "cancelada")}>
-                          <Button variant="ghost" className="min-h-9 px-3 text-xs text-danger">
+                          <Button
+                            variant="ghost"
+                            className="min-h-9 px-3 text-xs text-danger"
+                            confirm="¿Cancelar esta cita? Avisaremos a la otra parte por correo."
+                          >
                             Cancelar
                           </Button>
                         </form>
@@ -324,7 +332,7 @@ function SummaryTab({ record }: { record: PetRecord }) {
             <label className="flex items-center gap-2">
               <input type="checkbox" name="confirm" className="size-4" /> Confirmo que {pet.name} falleció.
             </label>
-            <Button variant="danger" className="self-start">
+            <Button variant="danger" className="self-start" confirm={`¿Registrar el fallecimiento de ${pet.name}? No se puede deshacer.`}>
               Registrar
             </Button>
           </form>
@@ -680,7 +688,11 @@ function TagTab({ record }: { record: PetRecord }) {
                 <Eye aria-hidden /> Ver lo que ven al escanear
               </ButtonLink>
               <form action={revokeTag.bind(null, pet.id, active.id)}>
-                <Button variant="ghost" className="text-danger">
+                <Button
+                  variant="ghost"
+                  className="text-danger"
+                  confirm="¿Desactivar esta placa? Dejará de mostrar datos al escanearse y no se puede reactivar."
+                >
                   Desactivar (placa perdida)
                 </Button>
               </form>
@@ -714,25 +726,27 @@ function TagTab({ record }: { record: PetRecord }) {
             <input type="checkbox" name="show_photo" defaultChecked={pet.show_photo} className="size-4" />
             Mostrar la foto de {pet.name}
           </label>
-          <div className="rounded-xl border border-danger/30 bg-danger-soft/50 p-4">
-            <label className="flex items-center gap-2.5 font-medium">
-              <input type="checkbox" name="lost_mode" defaultChecked={pet.lost_mode} className="size-4" />
-              <Siren aria-hidden className="size-4 text-danger" /> Modo extraviado
-            </label>
-            <p className="mt-1 text-muted">
-              Muestra un aviso destacado y te avisamos cada vez que alguien escanee la placa.
-            </p>
-            <div className="mt-3">
-              <Field label="Mensaje para quien la encuentre (opcional)">
-                <Textarea
-                  name="lost_message"
-                  maxLength={280}
-                  defaultValue={pet.lost_message ?? ""}
-                  placeholder="Se perdió cerca del parque. Necesita medicamento diario. Gracias."
-                />
-              </Field>
+          {pet.status === "activo" && (
+            <div className="rounded-xl border border-danger/30 bg-danger-soft/50 p-4">
+              <label className="flex items-center gap-2.5 font-medium">
+                <input type="checkbox" name="lost_mode" defaultChecked={pet.lost_mode} className="size-4" />
+                <Siren aria-hidden className="size-4 text-danger" /> Modo extraviado
+              </label>
+              <p className="mt-1 text-muted">
+                Muestra un aviso destacado y te avisamos cada vez que alguien escanee la placa.
+              </p>
+              <div className="mt-3">
+                <Field label="Mensaje para quien la encuentre (opcional)">
+                  <Textarea
+                    name="lost_message"
+                    maxLength={280}
+                    defaultValue={pet.lost_message ?? ""}
+                    placeholder="Se perdió cerca del parque. Necesita medicamento diario. Gracias."
+                  />
+                </Field>
+              </div>
             </div>
-          </div>
+          )}
           <Button className="self-start">Guardar</Button>
         </form>
       </Card>
@@ -742,8 +756,25 @@ function TagTab({ record }: { record: PetRecord }) {
 
 const accessLabel = { escaneo: "Escaneó la placa", codigo: "Con código", cita: "Cita agendada" };
 
-function AccessTab({ record }: { record: PetRecord }) {
-  const now = new Date();
+type AccessRow = PetRecord["access"][number];
+
+/** Agrupa la bitácora por clínico: un renglón por persona con su acceso más reciente. */
+function byClinician(rows: AccessRow[]) {
+  const now = Date.now();
+  const groups = new Map<string, { latest: AccessRow; until: string; visits: number }>();
+  for (const a of rows) {
+    const g = groups.get(a.vet_id);
+    if (!g) groups.set(a.vet_id, { latest: a, until: a.expires_at, visits: 1 });
+    else {
+      g.visits++;
+      if (a.expires_at > g.until) g.until = a.expires_at;
+    }
+  }
+  return [...groups.entries()].map(([vetId, g]) => ({ vetId, ...g, active: new Date(g.until).getTime() > now }));
+}
+
+function AccessTab({ record, code }: { record: PetRecord; code: string | null }) {
+  const clinicians = byClinician(record.access).sort((a, b) => Number(b.active) - Number(a.active));
   return (
     <>
       <Card>
@@ -752,28 +783,48 @@ function AccessTab({ record }: { record: PetRecord }) {
           title="Compartir con un MVZ sin escanear"
           subtitle="Código de 6 caracteres, válido 24 h y de un solo uso. El MVZ obtiene acceso por 7 días."
         />
-        <form action={createShareCode.bind(null, record.pet.id)}>
-          <Button variant="secondary">Generar código</Button>
-        </form>
+        {code ? (
+          <div className="flex flex-col items-start gap-3 rounded-2xl border-2 border-dashed border-brand/40 bg-brand-soft p-4">
+            <p className="text-sm text-muted">Dicta o comparte este código con tu MVZ:</p>
+            <div className="flex flex-wrap items-center gap-3">
+              <p className="font-mono text-3xl font-semibold tracking-[0.3em] text-brand-strong">{code}</p>
+              <CopyButton value={code} />
+            </div>
+            <p className="text-xs text-muted">Por seguridad solo se muestra una vez. Si lo pierdes, genera otro.</p>
+            <CleanFlashParams />
+          </div>
+        ) : (
+          <form action={createShareCode.bind(null, record.pet.id)}>
+            <Button variant="secondary">
+              <KeyRound aria-hidden /> Generar código
+            </Button>
+          </form>
+        )}
       </Card>
       <Card>
-        <CardTitle icon={ShieldCheck} title="Quién ha accedido al expediente" />
-        {record.access.length === 0 ? (
+        <CardTitle
+          icon={ShieldCheck}
+          title="Quién tiene acceso al expediente"
+          subtitle="Puedes retirar el acceso de un clínico en cualquier momento."
+        />
+        {clinicians.length === 0 ? (
           <p className="text-sm text-muted">Nadie ha accedido al expediente.</p>
         ) : (
           <ul className="flex flex-col divide-y divide-border text-sm">
-            {record.access.map((a) => {
+            {clinicians.map(({ vetId, latest: a, until, visits, active }) => {
               const isStudent = a.profiles?.role === "student";
+              const name = a.profiles?.full_name ?? "Clínico";
               return (
-                <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
-                  <span className="flex flex-col">
+                <li key={vetId} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                  <span className="flex min-w-0 flex-col">
                     <span className="flex flex-wrap items-center gap-2 font-medium">
-                      {a.profiles?.full_name ?? "Clínico"}
+                      {name}
                       {isStudent && (
                         <Badge tone="warning">
                           <GraduationCap aria-hidden /> No profesionista
                         </Badge>
                       )}
+                      {active ? <Badge tone="brand">Vigente hasta {formatDate(until)}</Badge> : <Badge>Vencido</Badge>}
                     </span>
                     <span className="text-xs text-muted">
                       {isStudent
@@ -785,11 +836,22 @@ function AccessTab({ record }: { record: PetRecord }) {
                             .filter(Boolean)
                             .join(" · ")}
                     </span>
+                    <span className="text-xs text-muted">
+                      Último acceso: {accessLabel[a.source]} · {formatDateTime(a.granted_at)}
+                      {visits > 1 ? ` · ${visits} accesos` : ""}
+                    </span>
                   </span>
-                  <span className="flex items-center gap-2 text-xs text-muted">
-                    {accessLabel[a.source]} · {formatDateTime(a.granted_at)}
-                    {new Date(a.expires_at) > now ? <Badge tone="brand">Vigente</Badge> : <Badge>Vencido</Badge>}
-                  </span>
+                  {active && (
+                    <form action={revokeClinicianAccess.bind(null, record.pet.id, vetId)}>
+                      <Button
+                        variant="ghost"
+                        className="min-h-9 px-3 text-xs text-danger"
+                        confirm={`¿Retirar el acceso de ${name}? Dejará de ver el expediente y se cancelarán sus citas pendientes.`}
+                      >
+                        Retirar acceso
+                      </Button>
+                    </form>
+                  )}
                 </li>
               );
             })}

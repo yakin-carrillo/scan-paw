@@ -150,7 +150,12 @@ export default async function AgendaPage({ searchParams }: PageProps<"/vet/agend
                             </Button>
                           </form>
                           <form action={updateAppointment.bind(null, a.id, "cancelada")}>
-                            <Button variant="ghost" className="min-h-9 px-3 text-xs text-danger" aria-label="Cancelar cita">
+                            <Button
+                              variant="ghost"
+                              className="min-h-9 px-3 text-xs text-danger"
+                              aria-label="Cancelar cita"
+                              confirm={`¿Cancelar la cita de ${a.pet_name}? Avisaremos al propietario.`}
+                            >
                               <X aria-hidden />
                             </Button>
                           </form>

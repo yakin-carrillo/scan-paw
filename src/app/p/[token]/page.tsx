@@ -50,6 +50,31 @@ async function recordPublicScan(token: string, petName: string, lostMode: boolea
   }
 }
 
+/** El QR de ejemplo de la portada (…/p/EJEMPLO) muestra esta vista sin datos reales. */
+const DEMO_TOKEN = "EJEMPLO";
+const DEMO_INFO: PublicPet = {
+  tag_status: "activa",
+  pet_name: "Luna",
+  species: "perro",
+  pet_status: "activo",
+  owner_first_name: "Ana",
+  contact_phone: null,
+  lost_mode: true,
+  lost_message: "Se perdió cerca del parque. Necesita su medicamento diario. ¡Gracias!",
+  photo_path: null,
+};
+
+async function signedPhoto(path: string): Promise<string | null> {
+  try {
+    const { data } = await createAdminClient().storage.from("pet-photos").createSignedUrl(path, 600);
+    return data?.signedUrl ?? null;
+  } catch (err) {
+    // Sin clave secreta (p. ej. en un despliegue de vista previa) se muestra la silueta.
+    console.error("No se pudo firmar la foto pública", err);
+    return null;
+  }
+}
+
 function Notice({ icon: Icon, title, text, children }: {
   icon: typeof QrCode;
   title: string;
@@ -75,7 +100,8 @@ export default async function PublicTagPage({ params, searchParams }: PageProps<
   const session = await getSession();
   const supabase = await createClient();
 
-  const { data } = await supabase.rpc("get_public_pet", { p_token: token });
+  const demo = token === DEMO_TOKEN;
+  const { data } = demo ? { data: [DEMO_INFO] } : await supabase.rpc("get_public_pet", { p_token: token });
   const info = (data as PublicPet[] | null)?.[0];
 
   if (!info) {
@@ -97,15 +123,8 @@ export default async function PublicTagPage({ params, searchParams }: PageProps<
   }
 
   // No registrar escaneos de usuarios con sesión (los clínicos se registran al abrir el expediente).
-  if (!session) await recordPublicScan(token, info.pet_name, info.lost_mode);
-
-  let photoUrl: string | null = null;
-  if (info.photo_path) {
-    const { data: signed } = await createAdminClient()
-      .storage.from("pet-photos")
-      .createSignedUrl(info.photo_path, 600);
-    photoUrl = signed?.signedUrl ?? null;
-  }
+  if (!session && !demo) await recordPublicScan(token, info.pet_name, info.lost_mode);
+  const photoUrl = info.photo_path ? await signedPhoto(info.photo_path) : null;
 
   const clinician = session?.profile.role === "vet" || session?.profile.role === "student";
   const isStudent = session?.profile.role === "student";
@@ -113,8 +132,17 @@ export default async function PublicTagPage({ params, searchParams }: PageProps<
   return (
     <div className="mx-auto flex max-w-md flex-col gap-4">
       <FlashMessages error={query.error} />
+      {demo && (
+        <Alert tone="info" title="Placa de ejemplo">
+          Así ve tu placa quien encuentra a tu mascota extraviada. Los datos son ficticios.{" "}
+          <a href="/entrar" className="font-medium underline">
+            Crea la de tu mascota
+          </a>
+          .
+        </Alert>
+      )}
       {info.lost_mode && (
-        <div role="alert" className="overflow-hidden rounded-3xl bg-danger text-white shadow-lift">
+        <div role="alert" className="overflow-hidden rounded-3xl bg-danger text-danger-ink shadow-lift">
           <div className="flex items-center gap-3 px-5 pt-5">
             <span className="grid size-11 place-items-center rounded-2xl bg-white/20">
               <Siren aria-hidden className="size-6" />
@@ -151,54 +179,63 @@ export default async function PublicTagPage({ params, searchParams }: PageProps<
               <MessageCircle aria-hidden /> Enviar WhatsApp
             </ButtonLink>
           </div>
+        ) : demo ? (
+          <p className="text-sm text-muted">
+            En una placa real aquí aparecen los botones para llamar o escribir por WhatsApp a su familia y para enviarle
+            tu ubicación.
+          </p>
         ) : (
           <p className="text-sm text-muted">La familia decidió no mostrar su teléfono. Comparte tu ubicación para avisarle.</p>
         )}
-        <div className="w-full">
-          <ShareLocationButton token={token} />
-        </div>
+        {!demo && (
+          <div className="w-full">
+            <ShareLocationButton token={token} />
+          </div>
+        )}
       </Card>
 
-      <Card className="text-sm">
-        <div className="flex items-start gap-3">
-          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand-soft text-brand">
-            <Stethoscope aria-hidden className="size-5" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <h2 className="text-base font-semibold">¿Eres médico veterinario?</h2>
-            {session?.isVerifiedClinician ? (
-              <form action={vetOpenRecord.bind(null, token)} className="mt-2 flex flex-col gap-3">
-                <p className="text-muted">
-                  Abrirás el expediente completo por 7 días. El acceso queda registrado y se avisa al propietario.
-                </p>
-                {isStudent && (
+      {!demo && (
+        <Card className="text-sm">
+          <div className="flex items-start gap-3">
+            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand-soft text-brand">
+              <Stethoscope aria-hidden className="size-5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-base font-semibold">¿Eres médico veterinario?</h2>
+              {session?.isVerifiedClinician ? (
+                <form action={vetOpenRecord.bind(null, token)} className="mt-2 flex flex-col gap-3">
+                  <p className="text-muted">
+                    Abrirás el expediente completo por 7 días. El acceso queda registrado y se avisa al propietario.
+                  </p>
+                  {isStudent && (
+                    <Alert tone="warning">
+                      Entras como estudiante. Lo que registres se marcará como No profesionista.
+                    </Alert>
+                  )}
+                  <Button size="lg">
+                    {isStudent ? <GraduationCap aria-hidden /> : <BadgeCheck aria-hidden />} Abrir expediente clínico
+                  </Button>
+                </form>
+              ) : clinician ? (
+                <div className="mt-2">
                   <Alert tone="warning">
-                    Entras como estudiante. Lo que registres se marcará como No profesionista.
+                    Tu cuenta aún está en revisión. Podrás abrir expedientes cuando se apruebe.
                   </Alert>
-                )}
-                <Button size="lg">
-                  {isStudent ? <GraduationCap aria-hidden /> : <BadgeCheck aria-hidden />} Abrir expediente clínico
-                </Button>
-              </form>
-            ) : clinician ? (
-              <div className="mt-2">
-                <Alert tone="warning">
-                  Tu cuenta aún está en revisión. Podrás abrir expedientes cuando se apruebe.
-                </Alert>
-              </div>
-            ) : session ? (
-              <p className="mt-1 text-muted">El historial clínico solo está disponible para MVZ verificados.</p>
-            ) : (
-              <p className="mt-1 text-muted">
-                <a href={`/entrar?next=/p/${token}`} className="font-medium text-brand underline">
-                  Inicia sesión
-                </a>{" "}
-                con tu cuenta verificada para ver el historial clínico.
-              </p>
-            )}
+                </div>
+              ) : session ? (
+                <p className="mt-1 text-muted">El historial clínico solo está disponible para MVZ verificados.</p>
+              ) : (
+                <p className="mt-1 text-muted">
+                  <a href={`/entrar?next=/p/${token}`} className="font-medium text-brand underline">
+                    Inicia sesión
+                  </a>{" "}
+                  con tu cuenta verificada para ver el historial clínico.
+                </p>
+              )}
+            </div>
           </div>
-        </div>
-      </Card>
+        </Card>
+      )}
 
       <p className="flex items-center justify-center gap-1.5 text-xs text-muted">
         <Lock aria-hidden className="size-3.5" /> Protegido por <PawMark className="size-3.5 text-brand" /> Scan-Paw

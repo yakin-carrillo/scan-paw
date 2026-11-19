@@ -73,6 +73,7 @@ export async function scheduleAppointment(formData: FormData) {
 export async function updateAppointment(appointmentId: string, status: "completada" | "cancelada") {
   await requireRole(["vet", "student"]);
   z.uuid().parse(appointmentId);
+  z.enum(["completada", "cancelada"]).parse(status);
   const supabase = await createClient();
   const { error } = await supabase.rpc("set_appointment_status", { p_id: appointmentId, p_status: status });
   if (error) redirect(`/vet/agenda?error=${encodeURIComponent(friendlyDbError(error.message))}`);

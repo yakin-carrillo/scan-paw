@@ -84,7 +84,8 @@ export function QrScanner({ mode = "abrir" }: { mode?: Mode }) {
           canvas.height = h;
           ctx.drawImage(video, 0, 0, w, h);
           const img = ctx.getImageData(0, 0, w, h);
-          text = jsQR(img.data, w, h, { inversionAttempts: "dontInvert" })?.data ?? null;
+          // Las placas grabadas en aluminio anodizado suelen tener el QR claro sobre fondo oscuro.
+          text = jsQR(img.data, w, h, { inversionAttempts: "attemptBoth" })?.data ?? null;
         }
         if (text) {
           const token = tokenFrom(text);

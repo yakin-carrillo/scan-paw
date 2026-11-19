@@ -83,9 +83,8 @@ export default async function VetPage({ searchParams }: PageProps<"/vet">) {
       .gte("scheduled_at", new Date(now.getTime() - 2 * 3600 * 1000).toISOString())
       .order("scheduled_at")
       .limit(5),
-    petIds.length
-      ? supabase.from("vaccinations").select("*").in("pet_id", petIds).not("next_due", "is", null).lte("next_due", in30)
-      : Promise.resolve({ data: [] }),
+    // Se leen todas las vacunas para descartar las que una enmienda ya corrigió.
+    petIds.length ? supabase.from("vaccinations").select("*").in("pet_id", petIds) : Promise.resolve({ data: [] }),
     (async () => {
       const paths = patients.map((p) => p.pets?.photo_path).filter((p): p is string => Boolean(p));
       if (!paths.length) return new Map<string, string>();
@@ -95,9 +94,9 @@ export default async function VetPage({ searchParams }: PageProps<"/vet">) {
   ]);
   const appointments = (appts ?? []) as Appointment[];
   const names = new Map(patients.map((p) => [p.pet_id, p.pets?.name ?? ""]));
-  const dueVaccines = latestVersions((vax ?? []) as Vaccination[]).sort((a, b) =>
-    (a.next_due ?? "").localeCompare(b.next_due ?? ""),
-  );
+  const dueVaccines = latestVersions((vax ?? []) as Vaccination[])
+    .filter((v) => v.next_due && v.next_due <= in30)
+    .sort((a, b) => (a.next_due ?? "").localeCompare(b.next_due ?? ""));
   const today = now.toISOString().slice(0, 10);
 
   return (

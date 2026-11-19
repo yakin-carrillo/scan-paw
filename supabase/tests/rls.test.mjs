@@ -423,6 +423,56 @@ await test("solo el admin carga los datos de demo y se pueden volver a cargar", 
   assert(after.rows[0].n === 0, "no se borraron las mascotas demo");
 });
 
+console.log("\nEndurecimiento");
+await test("la foto debe estar en la carpeta de la propia mascota", () =>
+  as(owner, () =>
+    expectError(
+      db.query("update public.pets set photo_path = $2 where id = $1", [petId, `${crypto.randomUUID()}/robada.jpg`]),
+      "pets_photo_path_own_folder",
+    )));
+await test("un anexo no puede apuntar a archivos de otra mascota", () =>
+  as(owner, () =>
+    expectError(
+      db.query(
+        "insert into public.attachments (pet_id, kind, title, storage_path, mime_type, size_bytes, source) values ($1, 'otro', 'x', $2, 'application/pdf', 10, 'propietario')",
+        [petId, `${crypto.randomUUID()}/ajeno.pdf`],
+      ),
+      "attachments_path_own_folder",
+    )));
+await test("el teléfono solo admite dígitos", () =>
+  as(owner, () =>
+    expectError(db.query("update public.profiles set phone = 'javascript:alert(1)' where id = $1", [owner]), "profiles_phone_format")));
+await test("una cita cerrada no se puede reabrir ni volver a cerrar", async () => {
+  await as(vet, () => expectError(db.query("select public.set_appointment_status($1, 'completada')", [appointmentId]), "ya fue"));
+  await as(vet, () => expectError(db.query("select public.set_appointment_status($1, 'programada')", [appointmentId]), "ya fue"));
+});
+await test("cancelar una cita recorta el acceso que se extendió por ella", async () => {
+  const at = new Date(Date.now() + 60 * 24 * 3600 * 1000).toISOString();
+  const { rows } = await as(vet2, () =>
+    db.query("select public.schedule_appointment($1, $2, 'Control') as id", [petId, at]));
+  await as(owner, () => db.query("select public.set_appointment_status($1, 'cancelada')", [rows[0].id]));
+  const acc = await db.query(
+    "select max(expires_at) as until from public.vet_access where pet_id = $1 and vet_id = $2", [petId, vet2]);
+  assert(new Date(acc.rows[0].until) < new Date(Date.now() + 8 * 24 * 3600 * 1000), "el acceso siguió extendido");
+});
+await test("el dueño retira el acceso de un MVZ y se cancelan sus citas", async () => {
+  const at = new Date(Date.now() + 3 * 24 * 3600 * 1000).toISOString();
+  const { rows } = await as(vet, () => db.query("select public.schedule_appointment($1, $2, 'Vacuna') as id", [petId, at]));
+  await as(other, () => expectError(db.query("select public.owner_revoke_access($1, $2)", [petId, vet]), "no es tuya"));
+  await as(owner, () => db.query("select public.owner_revoke_access($1, $2)", [petId, vet]));
+  const seen = await as(vet, () => db.query("select id from public.pets where id = $1", [petId]));
+  assert(seen.rows.length === 0, "el MVZ siguió viendo el expediente");
+  const appt = await db.query("select status from public.appointments where id = $1", [rows[0].id]);
+  assert(appt.rows[0].status === "cancelada", appt.rows[0].status);
+  await as(owner, () => expectError(db.query("select public.owner_revoke_access($1, $2)", [petId, vet]), "ya no está vigente"));
+});
+await test("una mascota fallecida no puede quedar en modo extraviado", () =>
+  as(owner, () =>
+    expectError(
+      db.query("update public.pets set status = 'fallecido', lost_mode = true where id = $1", [petId]),
+      "pets_lost_only_if_alive",
+    )));
+
 console.log("\nRevocación de placa");
 await test("al revocar la placa, la vista pública ya no muestra datos", async () => {
   await as(owner, () => db.query("select public.revoke_tag($1)", [tag.id]));

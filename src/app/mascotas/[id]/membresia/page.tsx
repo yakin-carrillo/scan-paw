@@ -51,7 +51,7 @@ export default async function MembresiaPage({ params, searchParams }: PageProps<
           </div>
           {active && m.status === "activa" && (
             <form action={cancelMembership.bind(null, id)}>
-              <Button variant="ghost" className="text-danger">
+              <Button variant="ghost" className="text-danger" confirm="¿Cancelar la renovación? La membresía sigue vigente hasta el fin del periodo.">
                 Cancelar renovación
               </Button>
             </form>

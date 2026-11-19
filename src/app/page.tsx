@@ -80,7 +80,7 @@ function HeroVisual() {
       {/* teléfono */}
       <div className="absolute top-0 right-2 w-[13.5rem] rotate-3 rounded-[2rem] border border-border bg-surface p-3 shadow-lift sm:w-60">
         <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-border" />
-        <div className="rounded-2xl bg-danger px-3 py-2 text-[11px] font-semibold text-white">
+        <div className="rounded-2xl bg-danger px-3 py-2 text-[11px] font-semibold text-danger-ink">
           <span className="flex items-center gap-1.5">
             <Siren className="size-3.5" /> Luna está extraviada
           </span>

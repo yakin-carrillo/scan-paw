@@ -56,7 +56,7 @@ Comprobaciones:
 ```powershell
 npm run lint
 npm run typecheck
-npm run test:db    # 37 pruebas de RLS, sin Docker
+npm run test:db    # 57 pruebas de RLS, sin Docker
 npm run build
 ```
 
@@ -181,6 +181,20 @@ Especificación sugerida: QR de al menos 2.5 × 2.5 cm, corrección de errores Q
 - [x] Límite de 10 intentos fallidos por hora al activar placas y canjear códigos
 - [x] Datos de demostración desde `/admin` (Luna y Michi, una placa activa y otra para activar en vivo)
 - [x] Vercel Web Analytics y prueba de humo `npm run test:smoke`
+
+## Pulido del MVP
+
+- [x] Escáner QR funcional en producción (el encabezado `Permissions-Policy` bloqueaba la cámara) y lectura de placas con QR claro sobre fondo oscuro
+- [x] El dueño puede retirar el acceso de un clínico (también cancela sus citas pendientes); cancelar una cita recorta el acceso que se extendió por ella
+- [x] Las citas cerradas no se pueden reabrir; una mascota en memoria no puede estar en modo extraviado
+- [x] Rutas de fotos y anexos restringidas a la carpeta de su mascota; teléfono validado en la base de datos
+- [x] Botones con estado de envío (sin envíos dobles) y confirmación en acciones destructivas
+- [x] Registro guiado que conserva lo escrito al cambiar de tipo de cuenta o si hay un error
+- [x] Pantallas de carga y de error; los mensajes `?ok=` / `?error=` se limpian de la URL
+- [x] Código para compartir con botón de copiar y visible una sola vez
+- [x] Contraste AA del acento y del aviso de extraviado en modo oscuro
+- [x] El QR de ejemplo de la portada abre una placa de demostración (`/p/EJEMPLO`)
+- [x] Índices y políticas RLS optimizadas según los avisos de Supabase
 
 La verificación de cédulas sigue siendo manual: la consulta de la SEP no ofrece una API pública estable y
 automatizarla implicaría saltar sus controles anti-robots.

@@ -2,14 +2,15 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { getSession } from "@/lib/auth";
+import { getSession, homePath } from "@/lib/auth";
 import { siteUrl } from "@/lib/env";
 import { cedulaSchema, firstError, formObject, friendlyDbError, optionalText, phoneSchema, safeNext } from "@/lib/forms";
 import { createClient } from "@/lib/supabase/server";
 
 /** Inicia el flujo OAuth con Google; vuelve a /auth/confirm con ?code=. */
 export async function signInWithGoogle(formData: FormData) {
-  const next = safeNext(formData.get("next"));
+  // "/" envía a cada quien a su panel (o al registro guiado si es su primera vez).
+  const next = safeNext(formData.get("next"), "/");
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
@@ -50,17 +51,21 @@ const onboardingSchema = z
     }
   });
 
-/** Registro guiado: tipo de cuenta, teléfono, cédula o matrícula y consentimiento. */
-export async function completeOnboarding(formData: FormData) {
+export type OnboardingState = { error: string | null; values?: Record<string, string> };
+
+/**
+ * Registro guiado: tipo de cuenta, teléfono, cédula o matrícula y consentimiento.
+ * Se usa con useActionState para conservar lo escrito si hay un error.
+ */
+export async function completeOnboarding(_prev: OnboardingState, formData: FormData): Promise<OnboardingState> {
   const session = await getSession();
   if (!session) redirect("/entrar");
 
-  const raw = formData.get("tipo");
-  const tipo = raw === "vet" || raw === "student" ? raw : "owner";
-  const parsed = onboardingSchema.safeParse(formObject(formData));
-  if (!parsed.success) {
-    redirect(`/bienvenida?tipo=${tipo}&error=${encodeURIComponent(firstError(parsed.error))}`);
-  }
+  const raw = formObject(formData);
+  // React reinicia el formulario tras la acción: devolvemos lo escrito para restaurarlo.
+  const values = Object.fromEntries(Object.entries(raw).map(([k, v]) => [k, String(v)]));
+  const parsed = onboardingSchema.safeParse(raw);
+  if (!parsed.success) return { error: firstError(parsed.error), values };
   const d = parsed.data;
 
   const supabase = await createClient();
@@ -73,8 +78,9 @@ export async function completeOnboarding(formData: FormData) {
     p_university: d.tipo === "student" ? d.university : null,
     p_enrollment: d.tipo === "student" ? d.enrollment_id : null,
   });
-  if (error) {
-    redirect(`/bienvenida?tipo=${tipo}&error=${encodeURIComponent(friendlyDbError(error.message))}`);
-  }
-  redirect(d.tipo === "owner" ? safeNext(d.next) : "/vet");
+  if (error) return { error: friendlyDbError(error.message), values };
+  // Respeta el destino original (p. ej. la placa que escaneó antes de registrarse).
+  const next = safeNext(d.next, "");
+  const generic = !next || next === "/" || next === "/mascotas" || next.startsWith("/bienvenida");
+  redirect(generic ? homePath(d.tipo) : next);
 }

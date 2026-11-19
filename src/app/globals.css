@@ -16,10 +16,11 @@
   --brand-strong: #0a524b;
   --brand-soft: #e2f0ec;
   --brand-ink: #ffffff;
-  --accent: #d9733b;
+  --accent: #a9521c; /* durazno tostado: contraste AA con texto blanco y sobre crema */
   --accent-soft: #fbe9dd;
   --danger: #c0352b;
   --danger-soft: #fbe7e4;
+  --danger-ink: #ffffff;
   --warning: #9a5a06;
   --warning-soft: #fcf1dc;
   --shadow: 23 48 43;
@@ -41,6 +42,7 @@
     --accent-soft: #3a2418;
     --danger: #f2776c;
     --danger-soft: #3a1714;
+  --danger-ink: #1f0806; /* el rojo claro del modo oscuro necesita texto oscuro */
     --warning: #f1b84a;
     --warning-soft: #33260e;
     --shadow: 0 0 0;
@@ -62,6 +64,7 @@
   --color-accent-soft: var(--accent-soft);
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
+  --color-danger-ink: var(--danger-ink);
   --color-warning: var(--warning);
   --color-warning-soft: var(--warning-soft);
   --font-sans: var(--font-geist-sans);
@@ -102,6 +105,8 @@ textarea {
     --foreground: #111111;
     --muted: #444444;
     --border: #cccccc;
+    --danger: #c0352b;
+    --danger-ink: #ffffff;
   }
   body {
     background: #ffffff;
