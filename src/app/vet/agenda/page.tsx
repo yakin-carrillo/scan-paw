@@ -14,7 +14,7 @@ import {
   PageTitle,
   Select,
 } from "@/components/ui";
-import { requireRole } from "@/lib/auth";
+import { requireClinician } from "@/lib/auth";
 import { activePatients, isoDaysFromNow, mexicoCityDay } from "@/lib/clinic";
 import { createClient } from "@/lib/supabase/server";
 import type { Appointment } from "@/lib/types";
@@ -40,7 +40,7 @@ function timeLabel(iso: string) {
 }
 
 export default async function AgendaPage({ searchParams }: PageProps<"/vet/agenda">) {
-  const session = await requireRole(["vet", "student"]);
+  const session = await requireClinician();
   const query = await searchParams;
   const preselected = typeof query.mascota === "string" ? query.mascota : "";
   const supabase = await createClient();

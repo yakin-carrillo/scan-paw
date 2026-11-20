@@ -40,8 +40,8 @@ export type SpaceInfo = {
 const cuenta: NavItem = { href: "/cuenta", label: "Cuenta", icon: "cuenta" };
 
 function clinicoSpace(session: Session): SpaceInfo | null {
-  const role = session.profile.role;
-  if (role !== "vet" && role !== "student") return null;
+  if (!session.isClinician) return null;
+  const role = session.profile.role === "student" ? "student" : "vet";
   const status = role === "vet" ? session.vet?.status : session.student?.status;
   const pending = status !== "approved";
   const label =

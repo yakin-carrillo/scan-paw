@@ -1,6 +1,6 @@
 import { QrScanner } from "@/components/qr-scanner";
 import { PageTitle } from "@/components/ui";
-import { isClinicianRole, requireSession } from "@/lib/auth";
+import { requireSession } from "@/lib/auth";
 
 export const metadata = { title: "Escanear placa" };
 
@@ -8,7 +8,7 @@ export default async function EscanearPage({ searchParams }: PageProps<"/escanea
   const session = await requireSession("/escanear");
   const query = await searchParams;
   const mode = query.modo === "activar" ? "activar" : "abrir";
-  const clinician = isClinicianRole(session.profile.role);
+  const clinician = session.isClinician;
 
   return (
     <div className="mx-auto max-w-lg">

@@ -26,7 +26,7 @@ import {
   PageTitle,
 } from "@/components/ui";
 import { PushBanner } from "@/components/push-toggle";
-import { requireRole } from "@/lib/auth";
+import { requireClinician } from "@/lib/auth";
 import { activePatients, isoDaysFromNow, mexicoCityDay } from "@/lib/clinic";
 import { createClient } from "@/lib/supabase/server";
 import { latestVersions, type Appointment, type Vaccination } from "@/lib/types";
@@ -49,7 +49,7 @@ function longDate() {
 
 /** Espacio clínico, pantalla "Hoy": la jornada del MVZ o estudiante. */
 export default async function VetTodayPage({ searchParams }: PageProps<"/vet">) {
-  const session = await requireRole(["vet", "student"]);
+  const session = await requireClinician();
   const query = await searchParams;
   const { vet, student, clinic } = session;
   const isStudent = session.profile.role === "student";

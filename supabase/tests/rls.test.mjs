@@ -411,16 +411,19 @@ await test("solo el admin carga los datos de demo y se pueden volver a cargar", 
   await as(owner, () => expectError(db.query("select public.admin_seed_demo()"), "Solo administradores"));
   await as(admin, () => db.query("select public.admin_seed_demo()"));
   const { rows } = await as(admin, () => db.query("select public.admin_seed_demo() as r"));
-  const pets = await as(admin, () => db.query("select name from public.pets where microchip like 'DEMO-%' order by name"));
-  assert(pets.rows.map((p) => p.name).join(",") === "Luna,Michi", JSON.stringify(pets.rows));
+  const mine = await as(admin, () =>
+    db.query("select p.name from public.pets p join public.pet_owners o on o.pet_id = p.id where o.user_id = $1 order by p.name", [admin]));
+  assert(mine.rows.map((p) => p.name).join(",") === "Luna,Michi,Pelusa,Rocky", JSON.stringify(mine.rows));
   const vac = await as(admin, () =>
     db.query("select count(*)::int as n from public.vaccinations where pet_id = $1 and source = 'vet'", [rows[0].r.luna]));
   assert(vac.rows[0].n === 2, `vacunas firmadas por MVZ: ${vac.rows[0].n}`);
-  const pub = await as(null, () => db.query("select pet_name from public.get_public_pet($1)", [rows[0].r.luna_tag]));
-  assert(pub.rows[0].pet_name === "Luna", "la placa demo no funciona");
+  const pub = await as(null, () => db.query("select pet_name, lost_mode from public.get_public_pet($1)", [rows[0].r.rocky_tag]));
+  assert(pub.rows[0].pet_name === "Rocky" && pub.rows[0].lost_mode === true, JSON.stringify(pub.rows));
   await as(admin, () => db.query("select public.admin_reset_demo()"));
   const after = await as(admin, () => db.query("select count(*)::int as n from public.pets where microchip like 'DEMO-%'"));
   assert(after.rows[0].n === 0, "no se borraron las mascotas demo");
+  const people = await db.query("select count(*)::int as n from auth.users where email like '%@demo.scan-paw.invalid'");
+  assert(people.rows[0].n === 0, "quedaron personas de demostración");
 });
 
 console.log("\nEndurecimiento");
@@ -697,18 +700,31 @@ await test("un propietario agrega su perfil de MVZ y queda pendiente", async () 
   await as(powner, () =>
     expectError(db.query("select public.add_professional_profile('student', null, null, 'UNAM', 'A1234')"), "ya tiene"));
 });
-await test("solo el admin carga las consultas de demostración", async () => {
+await test("con la demo, el admin usa los espacios clínico y de clínica con una sola cuenta", async () => {
   const { rows } = await as(admin, () => db.query("select public.admin_seed_demo() as r"));
-  const { luna, michi } = rows[0].r;
-  await as(owner, () =>
-    expectError(db.query("select public.admin_seed_demo_clinical($1, $2)", [luna, michi]), "Solo administradores"));
-  await as(admin, () => expectError(db.query("select public.admin_seed_demo_clinical($1, $2)", [cpet, cpet]), "demostración"));
-  await as(admin, () => db.query("select public.admin_seed_demo_clinical($1, $2)", [luna, michi]));
-  const c = await as(admin, () => db.query("select source, author_cedula from public.consultations where pet_id = $1", [luna]));
-  assert(c.rows.length === 1 && c.rows[0].source === "vet" && c.rows[0].author_cedula === "00000000", JSON.stringify(c.rows));
-  const w = await as(admin, () => db.query("select count(*)::int as n from public.weights where pet_id = $1", [luna]));
-  assert(w.rows[0].n === 4, `pesos de Luna: ${w.rows[0].n}`);
+  const { toby } = rows[0].r;
+  const seen = await as(admin, () => db.query("select name from public.pets where id = $1", [toby]));
+  assert(seen.rows[0]?.name === "Toby", "el admin no ve a su paciente");
+  await as(admin, () =>
+    db.query("insert into public.consultations (pet_id, reason, source) values ($1, 'Revisión de otitis', 'propietario')", [toby]));
+  const c = await as(admin, () =>
+    db.query("select source, author_cedula from public.consultations where pet_id = $1 and reason = 'Revisión de otitis'", [toby]));
+  assert(c.rows[0]?.source === "vet" && c.rows[0].author_cedula === "00000000", JSON.stringify(c.rows));
+  const agenda = await as(admin, () =>
+    db.query("select count(*)::int as n from public.clinic_agenda((select clinic_id from public.clinic_members where user_id = $1), now() - interval '7 days', now() + interval '7 days')", [admin]));
+  assert(agenda.rows[0].n >= 8, `citas de la clínica: ${agenda.rows[0].n}`);
+  const pending = await as(admin, () =>
+    db.query("select count(*)::int as n from public.clinics where status = 'pendiente' and name like '%(ejemplo)'"));
+  assert(pending.rows[0].n === 1, "falta la clínica pendiente de verificar");
+  await as(owner, () => expectError(db.query("select * from public.consultations where pet_id = $1", [toby]).then((r) => {
+    if (r.rows.length) throw new Error("un tercero vio la consulta");
+    throw new Error("sin filas");
+  }), "sin filas"));
   await as(admin, () => db.query("select public.admin_reset_demo()"));
+  const vp = await db.query("select status from public.vet_profiles where user_id = $1", [admin]);
+  assert(vp.rows[0]?.status === "approved", "el admin perdió su perfil de MVZ");
+  const clinics = await db.query("select count(*)::int as n from public.clinics where name like '%(ejemplo)'");
+  assert(clinics.rows[0].n === 0, "quedaron clínicas de demostración");
 });
 
 console.log(`\n${passed} pruebas correctas, ${failed} fallidas`);

@@ -124,7 +124,7 @@ export default async function CuentaPage({ searchParams }: PageProps<"/cuenta">)
       <Card>
         <h2 className="font-semibold">Avisos</h2>
         <p className="mt-1 mb-3 text-sm text-muted">
-          {profile.role === "vet" || profile.role === "student"
+          {session.isClinician
             ? "Te avisamos cuando se verifique tu cuenta, de tus citas y si una familia retira tu acceso."
             : "Te avisamos si alguien escanea la placa de tu mascota, cuando un MVZ abre su expediente y de sus vacunas y citas."}
         </p>

@@ -277,7 +277,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
             icon={Sparkles}
             title="Datos de demostración"
             tone="accent"
-            subtitle="Crea a Luna (perro) y Michi (gato) en tu cuenta con vacunas, alergias, consultas, peso, un estudio en PDF, una placa activa y otra lista para activar en vivo."
+            subtitle="Prepara una demo completa con tu sola cuenta: tus mascotas (una extraviada con escaneos y otra en memoria), tu perfil de MVZ con pacientes y citas de hoy, una clínica con equipo, agenda y plan activo, y solicitudes por verificar."
           />
           {seeded && (
             <div className="mb-4">
@@ -292,12 +292,18 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
                   Placa nueva: <span className="font-mono font-semibold">{query.nueva}</span> · código{" "}
                   <span className="font-mono font-semibold">{query.codigo}</span>
                 </p>
+                <p>
+                  Rocky (extraviado):{" "}
+                  <Link className="font-mono font-semibold underline" href={`/p/${query.perdido}`} target="_blank">
+                    {query.perdido}
+                  </Link>
+                </p>
                 <p className="mt-1 text-xs">Descarga los QR en Placas, lote &quot;demo&quot;.</p>
               </Alert>
             </div>
           )}
           <p className="mb-3 text-sm text-muted">
-            {demoPets ? `Hay ${demoPets} mascotas de demostración cargadas.` : "No hay datos de demostración cargados."} Volver a
+            {demoPets ? "Hay datos de demostración cargados." : "No hay datos de demostración cargados."} Volver a
             cargarlos reemplaza los anteriores.
           </p>
           <div className="flex flex-wrap gap-2">

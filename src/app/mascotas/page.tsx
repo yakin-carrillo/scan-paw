@@ -153,7 +153,7 @@ export default async function MascotasPage({ searchParams }: PageProps<"/mascota
           })}
         </ul>
       )}
-      {(session.profile.role === "vet" || session.profile.role === "student") && (
+      {session.isClinician && (
         <p className="mt-6 text-sm text-muted">
           Aquí ves tus propias mascotas. Tus pacientes están en el{" "}
           <Link href="/vet/pacientes" className="underline">

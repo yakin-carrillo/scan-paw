@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { requireRole } from "@/lib/auth";
+import { requireClinician } from "@/lib/auth";
 import { mexicoCityToIso } from "@/lib/clinic";
 import { friendlyDbError } from "@/lib/forms";
 import { clinicAdminIds, clinicianCredential, notifyUsers, petOwnerIds } from "@/lib/push";
@@ -13,7 +13,7 @@ import { formatDateTime } from "@/components/ui";
 
 /** MVZ o estudiante: canjea el código de 6 caracteres que generó el propietario. */
 export async function redeemCode(formData: FormData) {
-  const session = await requireRole(["vet", "student"]);
+  const session = await requireClinician();
   const code = String(formData.get("code") ?? "").trim().toUpperCase();
   if (!/^[0-9A-Z]{6}$/.test(code)) redirect(`/vet?error=${encodeURIComponent("El código tiene 6 caracteres.")}`);
 
@@ -39,7 +39,7 @@ const scheduleSchema = z.object({
 });
 
 export async function scheduleAppointment(formData: FormData) {
-  const session = await requireRole(["vet", "student"]);
+  const session = await requireClinician();
   const parsed = scheduleSchema.safeParse({
     pet: formData.get("pet"),
     at: formData.get("at"),
@@ -68,7 +68,7 @@ export async function scheduleAppointment(formData: FormData) {
 }
 
 export async function updateAppointment(appointmentId: string, status: "completada" | "cancelada") {
-  await requireRole(["vet", "student"]);
+  await requireClinician();
   z.uuid().parse(appointmentId);
   z.enum(["completada", "cancelada"]).parse(status);
   const supabase = await createClient();
@@ -95,7 +95,7 @@ export async function updateAppointment(appointmentId: string, status: "completa
 
 /** MVZ o estudiante: se une a una clínica con su código; queda pendiente de validación. */
 export async function joinClinic(formData: FormData) {
-  const session = await requireRole(["vet", "student"]);
+  const session = await requireClinician();
   const code = String(formData.get("code") ?? "").trim().toUpperCase();
   if (!/^[0-9A-Z]{8}$/.test(code)) redirect(`/vet?error=${encodeURIComponent("El código de la clínica tiene 8 caracteres.")}`);
   const supabase = await createClient();

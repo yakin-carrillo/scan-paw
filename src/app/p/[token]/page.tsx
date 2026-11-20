@@ -126,7 +126,7 @@ export default async function PublicTagPage({ params, searchParams }: PageProps<
   if (!session && !demo) await recordPublicScan(token, info.pet_name, info.lost_mode);
   const photoUrl = info.photo_path ? await signedPhoto(info.photo_path) : null;
 
-  const clinician = session?.profile.role === "vet" || session?.profile.role === "student";
+  const clinician = Boolean(session?.isClinician);
   const isStudent = session?.profile.role === "student";
 
   return (

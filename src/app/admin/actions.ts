@@ -51,7 +51,23 @@ export async function reviewAccount(formData: FormData) {
   redirect("/admin?ok=Revisi%C3%B3n%20guardada");
 }
 
-type SeedResult = { luna: string; michi: string; luna_tag: string; new_tag: string; new_code: string };
+/** Borra los PDF de la demo anterior (de todas las mascotas DEMO, no solo las del admin). */
+async function removeDemoFiles() {
+  const admin = createAdminClient();
+  const { data: old } = await admin.from("pets").select("id").like("microchip", "DEMO-%");
+  const paths = (old ?? []).map((p) => `${p.id}/demo-hemograma.pdf`);
+  if (paths.length) await admin.storage.from("attachments").remove(paths);
+}
+
+type SeedResult = {
+  luna: string;
+  michi: string;
+  toby: string;
+  luna_tag: string;
+  rocky_tag: string;
+  new_tag: string;
+  new_code: string;
+};
 
 /** Carga (o vuelve a cargar) las mascotas de ejemplo en la cuenta del administrador. */
 export async function seedDemo() {
@@ -60,25 +76,24 @@ export async function seedDemo() {
   const admin = createAdminClient();
 
   // Borra los archivos de la demo anterior antes de que se borren las mascotas.
-  const { data: old } = await supabase.from("pets").select("id").like("microchip", "DEMO-%");
-  const oldPaths = (old ?? []).map((p) => `${p.id}/demo-hemograma.pdf`);
-  if (oldPaths.length) await admin.storage.from("attachments").remove(oldPaths);
+  await removeDemoFiles();
 
   const { data, error } = await supabase.rpc("admin_seed_demo");
   if (error || !data) redirect(`/admin?error=${encodeURIComponent(friendlyDbError(error?.message))}`);
   const r = data as SeedResult;
-  const { error: clinicalErr } = await supabase.rpc("admin_seed_demo_clinical", { p_luna: r.luna, p_michi: r.michi });
-  if (clinicalErr) console.error("No se pudieron cargar las consultas de demo", clinicalErr.message);
 
-  const { error: upErr } = await admin.storage
-    .from("attachments")
-    .upload(`${r.luna}/demo-hemograma.pdf`, demoLabPdf("Luna"), { contentType: "application/pdf", upsert: true });
-  if (upErr) console.error("No se pudo subir el PDF de demo", upErr.message);
+  for (const [petId, name] of [[r.luna, "Luna"], [r.toby, "Toby"]]) {
+    const { error: upErr } = await admin.storage
+      .from("attachments")
+      .upload(`${petId}/demo-hemograma.pdf`, demoLabPdf(name), { contentType: "application/pdf", upsert: true });
+    if (upErr) console.error("No se pudo subir el PDF de demo", upErr.message);
+  }
 
   revalidatePath("/mascotas");
   const qs = new URLSearchParams({
-    ok: "Datos de demostración listos: Luna y Michi están en Mis mascotas.",
+    ok: "Demo lista: ya tienes los espacios de propietario, MVZ, clínica y administración.",
     placa: r.luna_tag,
+    perdido: r.rocky_tag,
     nueva: r.new_tag,
     codigo: r.new_code,
   });
@@ -88,9 +103,7 @@ export async function seedDemo() {
 export async function resetDemo() {
   await requireRole(["admin"]);
   const supabase = await createClient();
-  const { data: old } = await supabase.from("pets").select("id").like("microchip", "DEMO-%");
-  const oldPaths = (old ?? []).map((p) => `${p.id}/demo-hemograma.pdf`);
-  if (oldPaths.length) await createAdminClient().storage.from("attachments").remove(oldPaths);
+  await removeDemoFiles();
   const { error } = await supabase.rpc("admin_reset_demo");
   if (error) redirect(`/admin?error=${encodeURIComponent(friendlyDbError(error.message))}`);
   revalidatePath("/mascotas");

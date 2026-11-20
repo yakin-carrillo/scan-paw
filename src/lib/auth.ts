@@ -24,6 +24,8 @@ export type Session = {
   isVerifiedVet: boolean;
   /** MVZ o estudiante verificado: puede abrir expedientes. */
   isVerifiedClinician: boolean;
+  /** Tiene perfil clínico (MVZ o estudiante), verificado o no. */
+  isClinician: boolean;
   /** Completó el registro guiado (teléfono, tipo de cuenta y consentimiento). */
   onboarded: boolean;
 };
@@ -44,7 +46,8 @@ export const getSession = cache(async (): Promise<Session | null> => {
 
   let vet: VetProfile | null = null;
   let student: StudentProfile | null = null;
-  if (profile.role === "vet") {
+  // El administrador de la plataforma también puede tener perfil de MVZ (demo con una sola cuenta).
+  if (profile.role === "vet" || profile.role === "admin") {
     const { data } = await supabase
       .from("vet_profiles")
       .select("user_id, cedula, clinic_name, status, review_note")
@@ -82,7 +85,7 @@ export const getSession = cache(async (): Promise<Session | null> => {
         }
       : null;
 
-  const isVerifiedVet = profile.role === "vet" && vet?.status === "approved";
+  const isVerifiedVet = (profile.role === "vet" || profile.role === "admin") && vet?.status === "approved";
   const isVerifiedStudent = profile.role === "student" && student?.status === "approved";
 
   return {
@@ -94,6 +97,7 @@ export const getSession = cache(async (): Promise<Session | null> => {
     clinic,
     isVerifiedVet,
     isVerifiedClinician: isVerifiedVet || isVerifiedStudent,
+    isClinician: profile.role === "student" || Boolean(vet),
     onboarded: Boolean(profile.privacy_accepted_at),
   };
 });
@@ -117,8 +121,15 @@ export async function requireRole(roles: UserRole[]): Promise<Session> {
 }
 
 /** Exige ser MVZ o estudiante verificado (si está pendiente, vuelve a su inicio). */
+/** Exige perfil clínico (MVZ o estudiante, aunque esté pendiente de verificación). */
+export async function requireClinician(): Promise<Session> {
+  const session = await requireSession();
+  if (!session.isClinician) redirect("/");
+  return session;
+}
+
 export async function requireVerifiedClinician(): Promise<Session> {
-  const session = await requireRole(["vet", "student"]);
+  const session = await requireClinician();
   if (!session.isVerifiedClinician) redirect("/vet");
   return session;
 }
