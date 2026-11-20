@@ -140,3 +140,55 @@ export type Membership = {
 export function membershipActive(m: Membership | null | undefined): boolean {
   return Boolean(m && m.status === "activa" && new Date(m.current_period_end) > new Date());
 }
+
+export type ClinicStatus = "pendiente" | "verificada" | "rechazada";
+export type ClinicPlanStatus = "sin_plan" | "activa" | "cancelada";
+
+export type Clinic = {
+  id: string;
+  name: string;
+  address: string | null;
+  phone: string | null;
+  rfc: string | null;
+  status: ClinicStatus;
+  review_note: string | null;
+  plan_status: ClinicPlanStatus;
+  plan_until: string | null;
+  created_at: string;
+};
+
+export type ClinicMembership = {
+  clinicId: string;
+  name: string;
+  status: ClinicStatus;
+  isAdmin: boolean;
+  /** Estado de la persona dentro de la clínica. */
+  memberStatus: "pendiente" | "activo";
+  /** Verificada y con plan vigente: puede usar las funciones de clínica. */
+  operational: boolean;
+  planStatus: ClinicPlanStatus;
+  planUntil: string | null;
+};
+
+/** Plan vigente: activo, o cancelado pero aún dentro del periodo pagado. */
+export function clinicPlanActive(c: { plan_status: ClinicPlanStatus; plan_until: string | null }): boolean {
+  return c.plan_status !== "sin_plan" && Boolean(c.plan_until) && new Date(c.plan_until!) > new Date();
+}
+
+export type Consultation = Authored & {
+  visit_date: string;
+  reason: string;
+  weight_kg: number | null;
+  temperature_c: number | null;
+  findings: string | null;
+  diagnosis: string | null;
+  treatment: string | null;
+  owner_instructions: string | null;
+  clinic_name: string | null;
+};
+
+export type Weight = Authored & {
+  measured_on: string;
+  weight_kg: number;
+  consultation_id: string | null;
+};

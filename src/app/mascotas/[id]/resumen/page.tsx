@@ -53,6 +53,12 @@ export default async function ResumenPage({ params }: PageProps<"/mascotas/[id]/
             ["Esterilizado", pet.sterilized == null ? "—" : pet.sterilized ? "Sí" : "No"],
             ["Microchip", pet.microchip ?? "—"],
             ["Color / señas", pet.color ?? "—"],
+            [
+              "Último peso",
+              r.weights.length
+                ? `${r.weights[r.weights.length - 1].weight_kg.toLocaleString("es-MX", { maximumFractionDigits: 2 })} kg (${formatDate(r.weights[r.weights.length - 1].measured_on)})`
+                : "—",
+            ],
             ["Propietario", owner?.profiles?.full_name ?? "—"],
             ["Teléfono", owner?.profiles?.phone ?? "—"],
           ].map(([k, v]) => (
@@ -103,7 +109,8 @@ export default async function ResumenPage({ params }: PageProps<"/mascotas/[id]/
           {r.vaccinations.length === 0 ? (
             <p className="mt-2 text-sm text-muted">Sin vacunas registradas.</p>
           ) : (
-            <table className="mt-2 w-full text-left text-sm">
+            <div className="mt-2 overflow-x-auto">
+            <table className="w-full min-w-[28rem] text-left text-sm">
               <thead className="text-xs text-muted">
                 <tr>
                   <th className="py-1 font-medium">Vacuna</th>
@@ -129,8 +136,31 @@ export default async function ResumenPage({ params }: PageProps<"/mascotas/[id]/
                 })}
               </tbody>
             </table>
+            </div>
           )}
         </section>
+
+        {r.consultations.length > 0 && (
+          <section className="mt-5">
+            <h2 className="border-b border-border pb-1 text-lg font-semibold">Consultas recientes</h2>
+            <ul className="mt-2 flex flex-col gap-2 text-sm">
+              {r.consultations.slice(0, 3).map((c) => (
+                <li key={c.id}>
+                  <p>
+                    {formatDate(c.visit_date)} · <strong>{c.reason}</strong>
+                    {c.diagnosis ? ` · ${c.diagnosis}` : ""}
+                  </p>
+                  {c.treatment && <p className="text-muted">Tratamiento: {c.treatment}</p>}
+                  <p className="text-xs text-muted">
+                    {sourceLabel[c.source]}: {c.author_name}
+                    {c.author_cedula ? ` · Cédula ${c.author_cedula}` : ""}
+                    {c.clinic_name ? ` · ${c.clinic_name}` : ""}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         {r.attachments.length > 0 && (
           <section className="mt-5">

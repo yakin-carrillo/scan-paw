@@ -8,9 +8,11 @@ import {
   type Attachment,
   type Membership,
   type Condition,
+  type Consultation,
   type Pet,
   type Tag,
   type Vaccination,
+  type Weight,
 } from "@/lib/types";
 
 export type PetRecord = Awaited<ReturnType<typeof loadPetRecord>>;
@@ -26,7 +28,8 @@ export async function loadPetRecord(petId: string) {
   const { data: pet } = await supabase.from("pets").select("*").eq("id", petId).maybeSingle<Pet>();
   if (!pet) notFound();
 
-  const [owners, vaccinations, conditions, attachments, tags, access, scans, appointments, membership] = await Promise.all([
+  const [owners, vaccinations, conditions, attachments, tags, access, scans, appointments, membership, consultations, weights] =
+    await Promise.all([
     supabase
       .from("pet_owners")
       .select("user_id, role, profiles(full_name, phone)")
@@ -57,6 +60,13 @@ export async function loadPetRecord(petId: string) {
       .order("scheduled_at", { ascending: true })
       .limit(20),
     supabase.from("memberships").select("*").eq("pet_id", petId).maybeSingle<Membership>(),
+    supabase
+      .from("consultations")
+      .select("*")
+      .eq("pet_id", petId)
+      .order("visit_date", { ascending: false })
+      .order("created_at", { ascending: false }),
+    supabase.from("weights").select("*").eq("pet_id", petId).order("measured_on", { ascending: true }),
   ]);
 
   type OwnerRow = { user_id: string; role: string; profiles: { full_name: string; phone: string | null } | null };
@@ -92,6 +102,8 @@ export async function loadPetRecord(petId: string) {
     pet,
     photoUrl,
     isOwner,
+    /** Clínico verificado con acceso vigente: sus registros quedan firmados. */
+    clinicalAccess: session.isVerifiedClinician && Boolean(myAccess),
     isVetViewer: !isOwner && session.isVerifiedClinician && Boolean(myAccess),
     viewerIsStudent: session.profile.role === "student",
     appointments: (appointments.data ?? []) as Appointment[],
@@ -101,6 +113,8 @@ export async function loadPetRecord(petId: string) {
     vaccinations: latestVersions((vaccinations.data ?? []) as Vaccination[]),
     conditions: latestVersions((conditions.data ?? []) as Condition[]),
     attachments: latestVersions((attachments.data ?? []) as Attachment[]),
+    consultations: latestVersions((consultations.data ?? []) as Consultation[]),
+    weights: latestVersions((weights.data ?? []) as Weight[]).map((w) => ({ ...w, weight_kg: Number(w.weight_kg) })),
     tags: (tags.data ?? []) as Tag[],
     access: accessRows,
     scans: scans.data ?? [],

@@ -17,7 +17,7 @@ export function ButtonLink({
 }
 
 const inputClass =
-  "w-full rounded-xl border border-border bg-surface px-3.5 py-2.5 outline-none transition placeholder:text-muted/70 focus:border-brand focus:ring-4 focus:ring-brand/15";
+  "w-full min-w-0 rounded-xl border border-border bg-surface px-3.5 py-2.5 outline-none transition placeholder:text-muted/70 focus:border-brand focus:ring-4 focus:ring-brand/15";
 
 export function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (

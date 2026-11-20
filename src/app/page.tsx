@@ -18,7 +18,9 @@ import {
 } from "lucide-react";
 import { PawMark } from "@/components/logo";
 import { ButtonLink, Card, cx } from "@/components/ui";
-import { getSession, isClinicianRole } from "@/lib/auth";
+import { cookies } from "next/headers";
+import { getSession } from "@/lib/auth";
+import { buildSpaces, SPACE_COOKIE } from "@/lib/spaces";
 import { siteUrl } from "@/lib/env";
 import { formatMXN, PLAN_FEATURES, PLANS } from "@/lib/plans";
 
@@ -130,8 +132,12 @@ export default async function Home() {
   // Con sesión (p. ej. al abrir la app desde la pantalla de inicio) va directo a su panel.
   const session = await getSession();
   if (session && !session.onboarded) redirect("/bienvenida");
-  if (session && isClinicianRole(session.profile.role)) redirect("/vet");
-  if (session) redirect("/mascotas");
+  if (session) {
+    // Al último espacio que usó, si sigue disponible; si no, al principal.
+    const spaces = buildSpaces(session);
+    const saved = (await cookies()).get(SPACE_COOKIE)?.value;
+    redirect((spaces.find((s) => s.id === saved) ?? spaces[0]).home);
+  }
 
   return (
     <div className="flex flex-col gap-20 pb-6">

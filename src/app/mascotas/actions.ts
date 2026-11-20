@@ -193,6 +193,88 @@ export async function addCondition(petId: string, formData: FormData) {
   back(petId, "condiciones", { ok: d.amends_id ? "Actualización registrada." : "Registro agregado." });
 }
 
+const optionalNumber = (min: number, max: number, message: string) =>
+  z.preprocess(
+    (v) => (typeof v === "string" ? (v.trim() === "" ? undefined : Number(v.replace(",", "."))) : v),
+    z.number({ error: message }).min(min, message).max(max, message).optional(),
+  );
+
+const consultationSchema = z.object({
+  visit_date: z.iso.date({ error: "Indica la fecha de la consulta." }),
+  reason: z.string().trim().min(1, "Escribe el motivo de la consulta.").max(200),
+  weight_kg: optionalNumber(0.05, 199, "El peso debe estar entre 0.05 y 199 kg."),
+  temperature_c: optionalNumber(30, 45, "La temperatura debe estar entre 30 y 45 °C."),
+  findings: optionalText(2000),
+  diagnosis: optionalText(500),
+  treatment: optionalText(1000),
+  owner_instructions: optionalText(1000),
+  amends_id: z.preprocess((v) => (v === "" ? undefined : v), z.uuid().optional()),
+});
+
+/** Consulta clínica: solo la registra un MVZ o estudiante con acceso vigente (lo exige la base). */
+export async function addConsultation(petId: string, formData: FormData) {
+  uuid.parse(petId);
+  const session = await requireSession();
+  const parsed = consultationSchema.safeParse(formObject(formData));
+  if (!parsed.success) back(petId, "consultas", { error: firstError(parsed.error) });
+  const d = parsed.data;
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Mexico_City" });
+  if (d.visit_date > today) back(petId, "consultas", { error: "La fecha de la consulta no puede ser futura." });
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("consultations").insert({
+    pet_id: petId,
+    visit_date: d.visit_date,
+    reason: d.reason,
+    weight_kg: d.weight_kg ?? null,
+    temperature_c: d.temperature_c ?? null,
+    findings: d.findings ?? null,
+    diagnosis: d.diagnosis ?? null,
+    treatment: d.treatment ?? null,
+    owner_instructions: d.owner_instructions ?? null,
+    amends_id: d.amends_id ?? null,
+    // source, autor, cédula y clínica los asigna la base de datos.
+    source: "vet",
+  });
+  if (error) back(petId, "consultas", { error: friendlyDbError(error.message) });
+
+  if (d.owner_instructions) {
+    await notifyUsers(await petOwnerIds(petId), {
+      title: "Nuevas indicaciones de tu MVZ",
+      body: `${session.profile.full_name} registró la consulta "${d.reason}" con indicaciones para casa.`,
+      url: `/mascotas/${petId}?tab=consultas`,
+    });
+  }
+  revalidatePath(`/mascotas/${petId}`);
+  back(petId, "consultas", { ok: d.amends_id ? "Corrección registrada." : "Consulta registrada." });
+}
+
+const weightSchema = z.object({
+  weight_kg: z.preprocess(
+    (v) => (typeof v === "string" ? Number(v.replace(",", ".")) : v),
+    z.number({ error: "Escribe el peso en kilos." }).min(0.05, "Peso no válido.").max(199, "Peso no válido."),
+  ),
+  measured_on: z.iso.date({ error: "Indica la fecha." }),
+});
+
+/** Peso registrado por el propietario (queda marcado sin verificar) o por el clínico. */
+export async function addWeight(petId: string, formData: FormData) {
+  uuid.parse(petId);
+  const tab = String(formData.get("tab") ?? "identificacion").replace(/[^a-z]/g, "") || "identificacion";
+  const parsed = weightSchema.safeParse(formObject(formData));
+  if (!parsed.success) back(petId, tab, { error: firstError(parsed.error) });
+  const supabase = await createClient();
+  const { error } = await supabase.from("weights").insert({
+    pet_id: petId,
+    weight_kg: parsed.data.weight_kg,
+    measured_on: parsed.data.measured_on,
+    source: "propietario",
+  });
+  if (error) back(petId, tab, { error: friendlyDbError(error.message) });
+  revalidatePath(`/mascotas/${petId}`);
+  back(petId, tab, { ok: "Peso registrado." });
+}
+
 const attachmentSchema = z.object({
   kind: z.enum(["estudio", "receta", "otro"]),
   title: z.string().trim().min(1).max(120),

@@ -22,8 +22,8 @@ export default function PrivacidadPage() {
           <h2 className="font-semibold">Datos que recabamos</h2>
           <p>
             Identificación y contacto del propietario (nombre, correo electrónico, teléfono); datos de identificación de
-            sus mascotas; información clínica veterinaria (vacunas, alergias, padecimientos, estudios y recetas); para
-            médicos veterinarios, número de cédula profesional y clínica; para estudiantes, universidad y matrícula; citas agendadas; registros de acceso y, solo si quien escanea
+            sus mascotas; información clínica veterinaria (consultas, peso, vacunas, alergias, padecimientos, estudios y recetas); para
+            médicos veterinarios, número de cédula profesional y clínica; para estudiantes, universidad y matrícula; para clínicas, nombre comercial, dirección, teléfono y RFC; citas agendadas; registros de acceso y, solo si quien escanea
             una placa lo autoriza, su ubicación aproximada.
           </p>
         </section>
@@ -33,6 +33,7 @@ export default function PrivacidadPage() {
             <li>Mantener el historial clínico de la mascota y compartirlo con médicos veterinarios verificados.</li>
             <li>Permitir que quien encuentre una mascota extraviada contacte a su propietario.</li>
             <li>Verificar la cédula profesional de los médicos veterinarios y la matrícula de los estudiantes.</li>
+            <li>Verificar clínicas y permitir que validen a su equipo y gestionen su agenda.</li>
             <li>Enviar recordatorios de vacunas y citas.</li>
             <li>Enviar avisos de seguridad (escaneos, accesos al expediente).</li>
           </ul>
@@ -44,7 +45,9 @@ export default function PrivacidadPage() {
             decide el propietario, su teléfono y la foto de la mascota. El expediente clínico solo lo ven el propietario
             y los médicos veterinarios o estudiantes verificados que escanean la placa o reciben un código del
             propietario, por 7 días (o hasta el día siguiente de una cita agendada). Las entradas de estudiantes se marcan
-            como &quot;No profesionista&quot;. Utilizamos proveedores de infraestructura (Supabase, Vercel) que tratan los datos por cuenta
+            como &quot;No profesionista&quot;. Si la cita la agenda una clínica, el MVZ de esa clínica asignado a la cita también accede
+            hasta el día siguiente, y el propietario recibe un aviso. El administrador de una clínica ve las citas de su
+            clínica y el nombre y teléfono del propietario para coordinarlas, pero no el expediente clínico. Utilizamos proveedores de infraestructura (Supabase, Vercel) que tratan los datos por cuenta
             nuestra. Los avisos se envían como notificaciones push a través del servicio de tu navegador (Google, Apple o
             Mozilla), cifradas de extremo a extremo, y solo a los dispositivos donde los activaste.
           </p>

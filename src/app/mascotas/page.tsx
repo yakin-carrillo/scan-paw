@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { ChevronRight, PawPrint, Plus, QrCode, Siren } from "lucide-react";
+import { CalendarDays, ChevronRight, PawPrint, Plus, QrCode, Siren, Syringe } from "lucide-react";
 import { PushBanner } from "@/components/push-toggle";
-import { Badge, ButtonLink, Card, EmptyState, FlashMessages, PageTitle, PetAvatar, speciesLabel } from "@/components/ui";
+import { Badge, ButtonLink, Card, EmptyState, FlashMessages, formatDate, PageTitle, PetAvatar, speciesLabel } from "@/components/ui";
 import { requireSession } from "@/lib/auth";
-import { petAge } from "@/lib/pets";
+import { petAge, vaccineStatus } from "@/lib/pets";
 import { createClient } from "@/lib/supabase/server";
-import { membershipActive, type Membership, type Pet } from "@/lib/types";
+import { latestVersions, membershipActive, type Membership, type Pet, type Vaccination } from "@/lib/types";
 
 export const metadata = { title: "Mis mascotas" };
 
@@ -21,7 +21,7 @@ export default async function MascotasPage({ searchParams }: PageProps<"/mascota
     .sort((a, b) => Number(a.status === "fallecido") - Number(b.status === "fallecido") || a.name.localeCompare(b.name, "es"));
 
   const ids = pets.map((p) => p.id);
-  const [{ data: memberships }, { data: tags }, photos] = await Promise.all([
+  const [{ data: memberships }, { data: tags }, photos, { data: vax }, { data: appts }] = await Promise.all([
     ids.length ? supabase.from("memberships").select("*").in("pet_id", ids) : Promise.resolve({ data: [] }),
     ids.length
       ? supabase.from("tags").select("pet_id").eq("status", "activa").in("pet_id", ids)
@@ -32,10 +32,31 @@ export default async function MascotasPage({ searchParams }: PageProps<"/mascota
       const { data } = await supabase.storage.from("pet-photos").createSignedUrls(paths, 3600);
       return new Map((data ?? []).filter((d) => d.signedUrl).map((d) => [d.path ?? "", d.signedUrl]));
     })(),
+    ids.length ? supabase.from("vaccinations").select("*").in("pet_id", ids) : Promise.resolve({ data: [] }),
+    ids.length
+      ? supabase
+          .from("appointments")
+          .select("pet_id, scheduled_at")
+          .eq("status", "programada")
+          .gte("scheduled_at", new Date().toISOString())
+          .in("pet_id", ids)
+          .order("scheduled_at")
+      : Promise.resolve({ data: [] }),
   ]);
   const memberOf = new Map(((memberships ?? []) as Membership[]).map((m) => [m.pet_id, m]));
   const tagged = new Set(((tags ?? []) as { pet_id: string }[]).map((t) => t.pet_id));
   const firstName = session.profile.full_name.split(" ")[0];
+  // Pendientes por mascota: vacunas vencidas o por vencer y la próxima cita.
+  const due = new Map<string, "soon" | "overdue">();
+  latestVersions((vax ?? []) as Vaccination[]).forEach((v) => {
+    const s = vaccineStatus(v.next_due);
+    if (s === "ok") return;
+    if (s === "overdue" || !due.has(v.pet_id)) due.set(v.pet_id, s);
+  });
+  const nextAppt = new Map<string, string>();
+  ((appts ?? []) as { pet_id: string; scheduled_at: string }[]).forEach(
+    (a) => nextAppt.has(a.pet_id) || nextAppt.set(a.pet_id, a.scheduled_at),
+  );
 
   return (
     <>
@@ -105,6 +126,21 @@ export default async function MascotasPage({ searchParams }: PageProps<"/mascota
                               <Badge tone="accent">Sin placa</Badge>
                             )}
                             {member && <Badge tone="brand">Membresía</Badge>}
+                            {due.get(pet.id) === "overdue" && (
+                              <Badge tone="danger">
+                                <Syringe aria-hidden /> Vacuna vencida
+                              </Badge>
+                            )}
+                            {due.get(pet.id) === "soon" && (
+                              <Badge tone="warning">
+                                <Syringe aria-hidden /> Vacuna por vencer
+                              </Badge>
+                            )}
+                            {nextAppt.has(pet.id) && (
+                              <Badge tone="verified">
+                                <CalendarDays aria-hidden /> Cita {formatDate(nextAppt.get(pet.id))}
+                              </Badge>
+                            )}
                           </>
                         )}
                       </div>
@@ -117,11 +153,11 @@ export default async function MascotasPage({ searchParams }: PageProps<"/mascota
           })}
         </ul>
       )}
-      {session.profile.role === "vet" && (
+      {(session.profile.role === "vet" || session.profile.role === "student") && (
         <p className="mt-6 text-sm text-muted">
           Aquí ves tus propias mascotas. Tus pacientes están en el{" "}
-          <Link href="/vet" className="underline">
-            panel clínico
+          <Link href="/vet/pacientes" className="underline">
+            espacio clínico
           </Link>
           .
         </p>

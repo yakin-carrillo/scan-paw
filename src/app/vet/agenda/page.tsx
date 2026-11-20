@@ -68,8 +68,8 @@ export default async function AgendaPage({ searchParams }: PageProps<"/vet/agend
 
   return (
     <>
-      <BackLink href="/vet">Panel clínico</BackLink>
-      <PageTitle eyebrow="Portal de clínica" title="Agenda" subtitle="Citas con tus pacientes y su expediente listo para la consulta." />
+      <BackLink href="/vet">Hoy</BackLink>
+      <PageTitle eyebrow="Espacio clínico" title="Agenda" subtitle="Citas con tus pacientes y su expediente listo para la consulta." />
       <FlashMessages error={query.error} ok={query.ok} />
 
       <div className="grid gap-6 lg:grid-cols-[1fr_1.4fr]">

@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PROTECTED_PREFIXES = ["/mascotas", "/vet", "/admin", "/cuenta", "/placas", "/escanear"];
+const PROTECTED_PREFIXES = ["/mascotas", "/vet", "/admin", "/cuenta", "/placas", "/escanear", "/clinica"];
 
 /**
  * Refresca la sesión de Supabase en cada solicitud y redirige a /entrar
@@ -49,6 +49,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|sw.js|manifest.webmanifest|iconos|icon|apple-icon|api/cron|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|sw.js|manifest.webmanifest|iconos|icon|apple-icon|api/cron|api/calendario|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };

@@ -84,3 +84,14 @@ export function clinicianCredential(session: {
   if (session.student) return `estudiante de ${session.student.university}, No profesionista`;
   return `cédula ${session.vet?.cedula ?? ""}`;
 }
+
+/** Administradores activos de una clínica (requiere la clave secreta). */
+export async function clinicAdminIds(clinicId: string): Promise<string[]> {
+  const { data } = await createAdminClient()
+    .from("clinic_members")
+    .select("user_id")
+    .eq("clinic_id", clinicId)
+    .eq("role", "admin")
+    .eq("status", "activo");
+  return (data ?? []).map((m) => m.user_id);
+}

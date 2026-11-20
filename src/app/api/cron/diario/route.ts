@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { formatDate, formatDateTime } from "@/components/ui";
-import { notifyUsers, petOwnerIds } from "@/lib/push";
+import { clinicAdminIds, notifyUsers, petOwnerIds } from "@/lib/push";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { latestVersions, type Appointment, type Vaccination } from "@/lib/types";
 
@@ -84,5 +84,40 @@ export async function GET(request: NextRequest) {
     appointmentReminders++;
   }
 
-  return NextResponse.json({ ok: true, vaccineReminders, appointmentReminders, at: new Date().toISOString() });
+  // Resumen de la agenda del día para cada clínica con plan vigente (6:00 en CDMX).
+  const dayStart = new Date(`${new Date().toLocaleDateString("en-CA", { timeZone: "America/Mexico_City" })}T00:00:00-06:00`);
+  const dayEnd = new Date(dayStart.getTime() + 24 * 3600 * 1000);
+  const { data: clinics } = await admin
+    .from("clinics")
+    .select("id, name")
+    .eq("status", "verificada")
+    .in("plan_status", ["activa", "cancelada"])
+    .gt("plan_until", new Date().toISOString());
+  let clinicSummaries = 0;
+  for (const c of clinics ?? []) {
+    const { data: today } = await admin
+      .from("appointments")
+      .select("clinician_id")
+      .eq("clinic_id", c.id)
+      .eq("status", "programada")
+      .gte("scheduled_at", dayStart.toISOString())
+      .lt("scheduled_at", dayEnd.toISOString());
+    if (!today?.length) continue;
+    const unassigned = today.filter((a) => !a.clinician_id).length;
+    await notifyUsers(await clinicAdminIds(c.id), {
+      title: `Agenda de hoy en ${c.name}`,
+      body: `${today.length} ${today.length === 1 ? "cita" : "citas"}${unassigned ? `, ${unassigned} sin asignar` : ""}.`,
+      url: "/clinica/calendario",
+      tag: `agenda-${c.id}`,
+    });
+    clinicSummaries++;
+  }
+
+  return NextResponse.json({
+    ok: true,
+    vaccineReminders,
+    appointmentReminders,
+    clinicSummaries,
+    at: new Date().toISOString(),
+  });
 }

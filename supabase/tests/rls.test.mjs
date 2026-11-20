@@ -501,5 +501,215 @@ await test("al revocar la placa, la vista pública ya no muestra datos", async (
   assert(rows[0].tag_status === "revocada" && rows[0].pet_name === null, JSON.stringify(rows[0]));
 });
 
+console.log("\nClínicas");
+const cadmin = await onboard({ full_name: "Dra. Elena Ríos" }, "vet", "5520000001", "2222222");
+await db.query("update public.vet_profiles set status = 'approved' where user_id = $1", [cadmin]);
+const cvet = await onboard({ full_name: "Dr. Fausto Gil" }, "vet", "5520000002", "3333333");
+const cvet2 = await onboard({ full_name: "Dra. Gina Paz" }, "vet", "5520000003", "4444444");
+const radmin = await onboard({ full_name: "Dr. Hugo Rival" }, "vet", "5520000004", "5555555");
+const powner = await onboard({ full_name: "Iris Dueña" }, "owner", "5520000005");
+const cpet = crypto.randomUUID();
+const lonelyPet = crypto.randomUUID();
+await as(powner, () =>
+  db.query(
+    "insert into public.pets (id, name, species, created_by) values ($1, 'Toby', 'perro', $3), ($2, 'Solo', 'gato', $3)",
+    [cpet, lonelyPet, powner],
+  ));
+let clinic;
+let rival;
+let invite;
+let clinicAppt;
+const inDays = (d) => new Date(Date.now() + d * 24 * 3600 * 1000).toISOString();
+
+await test("cualquier cuenta registra su clínica y queda como administrador", async () => {
+  const { rows } = await as(cadmin, () =>
+    db.query("select public.create_clinic('Clínica Norte', 'Av. Siempre Viva 1', '5520000099', null) as id"));
+  clinic = rows[0].id;
+  const m = await as(cadmin, () => db.query("select role, status from public.clinic_members where clinic_id = $1", [clinic]));
+  assert(m.rows[0].role === "admin" && m.rows[0].status === "activo", JSON.stringify(m.rows));
+  const c = await as(cadmin, () => db.query("select status, plan_status from public.clinics where id = $1", [clinic]));
+  assert(c.rows[0].status === "pendiente" && c.rows[0].plan_status === "sin_plan", JSON.stringify(c.rows));
+  rival = (await as(radmin, () => db.query("select public.create_clinic('Clínica Sur', null, null, null) as id"))).rows[0].id;
+});
+await test("sin verificación ni plan, las funciones de clínica se rechazan", async () => {
+  await as(cadmin, () => expectError(db.query("select public.clinic_create_invite($1)", [clinic]), "verificada"));
+  await as(cadmin, () => db.query("select public.demo_activate_clinic_plan($1)", [clinic]));
+  await as(cadmin, () => expectError(db.query("select public.clinic_create_invite($1)", [clinic]), "verificada"));
+});
+await test("solo el admin de la plataforma verifica clínicas", async () => {
+  await as(cadmin, () =>
+    expectError(db.query("select public.admin_review_clinic($1, 'verificada', null)", [clinic]), "Solo administradores"));
+  await as(admin, () => db.query("select public.admin_review_clinic($1, 'verificada', null)", [clinic]));
+  await as(admin, () => db.query("select public.admin_review_clinic($1, 'verificada', null)", [rival]));
+  await as(radmin, () => db.query("select public.demo_activate_clinic_plan($1)", [rival]));
+});
+await test("solo el administrador de la clínica genera invitaciones", async () => {
+  await as(powner, () => expectError(db.query("select public.clinic_create_invite($1)", [clinic]), "Solo el administrador"));
+  await as(radmin, () => expectError(db.query("select public.clinic_create_invite($1)", [clinic]), "Solo el administrador"));
+  invite = (await as(cadmin, () => db.query("select public.clinic_create_invite($1) as code", [clinic]))).rows[0].code;
+  assert(/^[2-9A-HJ-NP-Z]{8}$/.test(invite), invite);
+});
+await test("un propietario no puede unirse a una clínica", () =>
+  as(powner, () => expectError(db.query("select public.clinic_join($1)", [invite]), "Solo médicos")));
+await test("un código incorrecto no une a nadie", async () => {
+  const { rows } = await as(cvet, () => db.query("select public.clinic_join('ZZZZZZZZ') as id"));
+  assert(rows[0].id === null, "se unió con un código falso");
+});
+await test("el MVZ se une con el código y el código no se reutiliza", async () => {
+  const { rows } = await as(cvet, () => db.query("select public.clinic_join($1) as id", [invite]));
+  assert(rows[0].id === clinic, "no se unió");
+  const again = await as(cvet2, () => db.query("select public.clinic_join($1) as id", [invite]));
+  assert(again.rows[0].id === null, "el código se reutilizó");
+  const m = await as(cvet, () => db.query("select status from public.clinic_members where user_id = $1", [cvet]));
+  assert(m.rows[0].status === "pendiente", m.rows[0].status);
+});
+await test("otra clínica no puede validar a un miembro ajeno", () =>
+  as(radmin, () =>
+    expectError(db.query("select public.clinic_review_member($1, $2, true)", [clinic, cvet]), "Solo el administrador")));
+await test("la clínica valida al MVZ y queda verificado para toda la red", async () => {
+  await as(cadmin, () =>
+    expectError(db.query("select public.clinic_review_member($1, $2, true)", [clinic, cadmin]), "a ti mismo"));
+  await as(cadmin, () => db.query("select public.clinic_review_member($1, $2, true)", [clinic, cvet]));
+  const v = await db.query("select status, validated_by_clinic from public.vet_profiles where user_id = $1", [cvet]);
+  assert(v.rows[0].status === "approved" && v.rows[0].validated_by_clinic === clinic, JSON.stringify(v.rows));
+});
+await test("los compañeros de clínica ven nombre y cédula entre sí; otros no", async () => {
+  const seen = await as(cadmin, () => db.query("select cedula from public.vet_profiles where user_id = $1", [cvet]));
+  assert(seen.rows[0]?.cedula === "3333333", JSON.stringify(seen.rows));
+  const hidden = await as(radmin, () => db.query("select id from public.profiles where id = $1", [cvet]));
+  assert(hidden.rows.length === 0, "otra clínica vio el perfil");
+});
+await test("el enlace del calendario no se lee directo, solo con su función", async () => {
+  await as(cadmin, () => expectError(db.query("select calendar_token from public.clinics"), "permission denied"));
+  await as(cadmin, () => expectError(db.query("select calendar_token from public.clinic_members"), "permission denied"));
+  const { rows } = await as(cadmin, () => db.query("select public.my_calendar_links() as l"));
+  assert(rows[0].l.clinic?.length === 32 && rows[0].l.member?.length === 32, JSON.stringify(rows[0].l));
+  const vetLinks = await as(cvet, () => db.query("select public.my_calendar_links() as l"));
+  assert(vetLinks.rows[0].l.clinic === null && vetLinks.rows[0].l.member, JSON.stringify(vetLinks.rows[0].l));
+});
+
+console.log("\nAgenda de la clínica");
+await db.query(
+  "insert into public.vet_access (pet_id, vet_id, source, expires_at) values ($1, $2, 'codigo', now() + interval '7 days')",
+  [cpet, cvet],
+);
+await test("la clínica no agenda pacientes sin acceso de su equipo", () =>
+  as(cadmin, () =>
+    expectError(
+      db.query("select public.clinic_schedule_appointment($1, $2, $3, $4, 'Control')", [clinic, cvet, lonelyPet, inDays(2)]),
+      "Ningún miembro",
+    )));
+await test("la clínica agenda para su MVZ y ve la cita con el contacto del dueño", async () => {
+  const { rows } = await as(cadmin, () =>
+    db.query("select public.clinic_schedule_appointment($1, $2, $3, $4, 'Vacuna anual') as id", [clinic, cvet, cpet, inDays(2)]));
+  clinicAppt = rows[0].id;
+  const seen = await as(cadmin, () => db.query("select clinic_name from public.appointments where id = $1", [clinicAppt]));
+  assert(seen.rows[0]?.clinic_name === "Clínica Norte", JSON.stringify(seen.rows));
+  const agenda = await as(cadmin, () =>
+    db.query("select * from public.clinic_agenda($1, $2, $3)", [clinic, inDays(-1), inDays(7)]));
+  assert(agenda.rows.length === 1 && agenda.rows[0].owner_phone === "5520000005", JSON.stringify(agenda.rows));
+  const mine = await as(cvet, () => db.query("select id from public.appointments where id = $1", [clinicAppt]));
+  assert(mine.rows.length === 1, "el MVZ asignado no ve su cita");
+});
+await test("el administrador de la clínica no lee el expediente", async () => {
+  const pets = await as(cadmin, () => db.query("select id from public.pets where id = $1", [cpet]));
+  assert(pets.rows.length === 0, "vio la mascota");
+  const vax = await as(cadmin, () => db.query("select id from public.vaccinations where pet_id = $1", [cpet]));
+  assert(vax.rows.length === 0, "vio vacunas");
+});
+await test("otra clínica no ve ni gestiona las citas ajenas", async () => {
+  const seen = await as(radmin, () => db.query("select id from public.appointments where id = $1", [clinicAppt]));
+  assert(seen.rows.length === 0, "vio una cita ajena");
+  await as(radmin, () =>
+    expectError(db.query("select * from public.clinic_agenda($1, $2, $3)", [clinic, inDays(0), inDays(7)]), "Solo el administrador"));
+  await as(radmin, () => expectError(db.query("select public.set_appointment_status($1, 'cancelada')", [clinicAppt]), "No puedes"));
+});
+await test("solo se reasigna a miembros verificados de la clínica", () =>
+  as(cadmin, () =>
+    expectError(
+      db.query("select public.clinic_update_appointment($1, $2, $3)", [clinicAppt, radmin, inDays(3)]),
+      "miembro verificado",
+    )));
+await test("con el plan vencido la agenda de la clínica se bloquea", async () => {
+  await db.query("update public.clinics set plan_until = now() - interval '1 day' where id = $1", [clinic]);
+  await as(cadmin, () =>
+    expectError(db.query("select * from public.clinic_agenda($1, $2, $3)", [clinic, inDays(0), inDays(7)]), "plan activo"));
+  await db.query("update public.clinics set plan_until = now() + interval '30 days' where id = $1", [clinic]);
+});
+await test("no se puede escribir directo en las tablas de clínica", async () => {
+  await as(cadmin, () =>
+    expectError(db.query("update public.clinics set plan_status = 'activa' where id = $1", [rival]), "permission denied"));
+  await as(cvet, () =>
+    expectError(db.query("update public.clinic_members set role = 'admin' where user_id = $1", [cvet]), "permission denied"));
+});
+
+console.log("\nConsultas y peso");
+await test("el MVZ registra una consulta firmada y su peso pasa al registro", async () => {
+  await as(cvet, () =>
+    db.query(
+      "insert into public.consultations (pet_id, reason, weight_kg, temperature_c, diagnosis, owner_instructions, clinic_name, source) values ($1, 'Revisión', 12.4, 38.6, 'Sano', 'Sin cambios', 'Clínica Falsa', 'vet')",
+      [cpet],
+    ));
+  const { rows } = await as(powner, () =>
+    db.query("select source, author_cedula, clinic_name from public.consultations where pet_id = $1", [cpet]));
+  assert(
+    rows[0]?.source === "vet" && rows[0].author_cedula === "3333333" && rows[0].clinic_name === "Clínica Norte",
+    JSON.stringify(rows),
+  );
+  const w = await as(powner, () => db.query("select weight_kg::float as kg, source from public.weights where pet_id = $1", [cpet]));
+  assert(w.rows.length === 1 && w.rows[0].kg === 12.4 && w.rows[0].source === "vet", JSON.stringify(w.rows));
+});
+await test("el propietario no registra consultas pero sí su peso, marcado sin verificar", async () => {
+  await as(powner, () =>
+    expectError(db.query("insert into public.consultations (pet_id, reason, source) values ($1, 'Yo', 'vet')", [cpet]), "Solo un clínico"));
+  await as(powner, () => db.query("insert into public.weights (pet_id, weight_kg, source) values ($1, 12.9, 'vet')", [cpet]));
+  const w = await as(powner, () => db.query("select source from public.weights where pet_id = $1 and weight_kg = 12.9", [cpet]));
+  assert(w.rows[0]?.source === "propietario", JSON.stringify(w.rows));
+});
+await test("las consultas no se editan ni las ven terceros", async () => {
+  await as(cvet, () =>
+    expectError(db.query("update public.consultations set diagnosis = 'x' where pet_id = $1", [cpet]), "permission denied"));
+  await as(cvet, () => expectError(db.query("delete from public.weights where pet_id = $1", [cpet]), "permission denied"));
+  const o = await as(other, () => db.query("select id from public.consultations where pet_id = $1", [cpet]));
+  const c = await as(cadmin, () => db.query("select id from public.consultations where pet_id = $1", [cpet]));
+  assert(o.rows.length === 0 && c.rows.length === 0, "un tercero vio la consulta");
+  await as(null, () => expectError(db.query("select * from public.consultations"), "permission denied"));
+});
+await test("dar de baja a un MVZ deja sus citas futuras sin asignar", async () => {
+  await as(cadmin, () => db.query("select public.clinic_remove_member($1, $2)", [clinic, cvet]));
+  const { rows } = await as(cadmin, () => db.query("select clinician_id from public.appointments where id = $1", [clinicAppt]));
+  assert(rows[0].clinician_id === null, "la cita siguió asignada");
+  const m = await db.query("select status from public.clinic_members where clinic_id = $1 and user_id = $2", [clinic, cvet]);
+  assert(m.rows[0].status === "baja", m.rows[0].status);
+});
+
+console.log("\nPerfil profesional");
+await test("un propietario agrega su perfil de MVZ y queda pendiente", async () => {
+  await as(powner, () => expectError(db.query("select public.add_professional_profile('vet', '12', null, null, null)"), "cédula"));
+  await as(powner, () => db.query("select public.add_professional_profile('vet', '6666666', 'Mi consultorio', null, null)"));
+  const { rows } = await db.query(
+    "select p.role, v.status from public.profiles p join public.vet_profiles v on v.user_id = p.id where p.id = $1",
+    [powner],
+  );
+  assert(rows[0].role === "vet" && rows[0].status === "pending", JSON.stringify(rows));
+  const pets = await as(powner, () => db.query("select id from public.pets where id = $1", [cpet]));
+  assert(pets.rows.length === 1, "perdió acceso a su mascota");
+  await as(powner, () =>
+    expectError(db.query("select public.add_professional_profile('student', null, null, 'UNAM', 'A1234')"), "ya tiene"));
+});
+await test("solo el admin carga las consultas de demostración", async () => {
+  const { rows } = await as(admin, () => db.query("select public.admin_seed_demo() as r"));
+  const { luna, michi } = rows[0].r;
+  await as(owner, () =>
+    expectError(db.query("select public.admin_seed_demo_clinical($1, $2)", [luna, michi]), "Solo administradores"));
+  await as(admin, () => expectError(db.query("select public.admin_seed_demo_clinical($1, $2)", [cpet, cpet]), "demostración"));
+  await as(admin, () => db.query("select public.admin_seed_demo_clinical($1, $2)", [luna, michi]));
+  const c = await as(admin, () => db.query("select source, author_cedula from public.consultations where pet_id = $1", [luna]));
+  assert(c.rows.length === 1 && c.rows[0].source === "vet" && c.rows[0].author_cedula === "00000000", JSON.stringify(c.rows));
+  const w = await as(admin, () => db.query("select count(*)::int as n from public.weights where pet_id = $1", [luna]));
+  assert(w.rows[0].n === 4, `pesos de Luna: ${w.rows[0].n}`);
+  await as(admin, () => db.query("select public.admin_reset_demo()"));
+});
+
 console.log(`\n${passed} pruebas correctas, ${failed} fallidas`);
 process.exit(failed ? 1 : 0);

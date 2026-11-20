@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireRole } from "@/lib/auth";
 import { demoLabPdf } from "@/lib/demo-pdf";
-import { notifyUsers } from "@/lib/push";
+import { clinicAdminIds, notifyUsers } from "@/lib/push";
 import { friendlyDbError } from "@/lib/forms";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -67,6 +67,8 @@ export async function seedDemo() {
   const { data, error } = await supabase.rpc("admin_seed_demo");
   if (error || !data) redirect(`/admin?error=${encodeURIComponent(friendlyDbError(error?.message))}`);
   const r = data as SeedResult;
+  const { error: clinicalErr } = await supabase.rpc("admin_seed_demo_clinical", { p_luna: r.luna, p_michi: r.michi });
+  if (clinicalErr) console.error("No se pudieron cargar las consultas de demo", clinicalErr.message);
 
   const { error: upErr } = await admin.storage
     .from("attachments")
@@ -93,4 +95,33 @@ export async function resetDemo() {
   if (error) redirect(`/admin?error=${encodeURIComponent(friendlyDbError(error.message))}`);
   revalidatePath("/mascotas");
   redirect("/admin?ok=Datos%20de%20demostraci%C3%B3n%20eliminados");
+}
+
+const clinicReviewSchema = z.object({
+  clinic: z.uuid(),
+  status: z.enum(["verificada", "rechazada"]),
+  note: z.string().max(300).optional(),
+});
+
+/** Verifica o rechaza una clínica. Solo una clínica verificada puede validar a su equipo. */
+export async function reviewClinic(formData: FormData) {
+  await requireRole(["admin"]);
+  const parsed = clinicReviewSchema.safeParse({
+    clinic: formData.get("clinic"),
+    status: formData.get("status"),
+    note: formData.get("note") ?? undefined,
+  });
+  if (!parsed.success) redirect("/admin?error=Datos%20no%20v%C3%A1lidos");
+  const d = parsed.data;
+  if (d.status === "rechazada" && !d.note?.trim()) redirect("/admin?error=Escribe%20el%20motivo%20del%20rechazo");
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("admin_review_clinic", { p_clinic: d.clinic, p_status: d.status, p_note: d.note ?? "" });
+  if (error) redirect(`/admin?error=${encodeURIComponent(friendlyDbError(error.message))}`);
+  await notifyUsers(await clinicAdminIds(d.clinic), {
+    title: d.status === "verificada" ? "Verificamos tu clínica" : "No pudimos verificar tu clínica",
+    body: d.status === "verificada" ? "Activa el plan para invitar a tu equipo y usar la agenda." : `Motivo: ${d.note}`,
+    url: d.status === "verificada" ? "/clinica/plan" : "/clinica",
+  });
+  revalidatePath("/admin");
+  redirect("/admin?ok=Cl%C3%ADnica%20revisada");
 }

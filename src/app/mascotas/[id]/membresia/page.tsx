@@ -19,7 +19,7 @@ export default async function MembresiaPage({ params, searchParams }: PageProps<
   return (
     <div className="mx-auto max-w-3xl">
       <BackLink href={`/mascotas/${id}`}>Expediente de {r.pet.name}</BackLink>
-      <PageTitle eyebrow="Membresía" title={`Plan de ${r.pet.name}`} subtitle="Un plan por mascota. Las clínicas no pagan." />
+      <PageTitle eyebrow="Membresía" title={`Plan de ${r.pet.name}`} subtitle="Un plan por mascota. Los MVZ y estudiantes no pagan." />
       <FlashMessages error={query.error} ok={query.ok} />
 
       <div className="mb-5">

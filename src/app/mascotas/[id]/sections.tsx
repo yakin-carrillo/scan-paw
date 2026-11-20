@@ -1,0 +1,669 @@
+import {
+  Eye,
+  FileText,
+  GraduationCap,
+  HeartPulse,
+  KeyRound,
+  QrCode,
+  ShieldCheck,
+  Siren,
+  Syringe,
+  TriangleAlert,
+} from "lucide-react";
+import { EntryAuthor } from "@/components/record-entries";
+import {
+  Badge,
+  Button,
+  ButtonLink,
+  Card,
+  CardTitle,
+  cx,
+  EmptyState,
+  Field,
+  formatDate,
+  formatDateTime,
+  Input,
+  Select,
+  Textarea,
+} from "@/components/ui";
+import { CleanFlashParams } from "@/components/clean-url";
+import { CopyButton } from "@/components/copy-button";
+import { AttachmentUploader } from "@/components/uploaders";
+import { siteUrl } from "@/lib/env";
+import { vaccineStatus, type PetRecord } from "@/lib/pets";
+import type { Condition, Vaccination } from "@/lib/types";
+import {
+  addCondition,
+  addVaccination,
+  createShareCode,
+  revokeClinicianAccess,
+  revokeTag,
+  updatePublicSettings,
+} from "../actions";
+
+/* Secciones del expediente compartidas entre la cartilla del propietario y la ficha clínica. */
+
+export function Row({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex justify-between gap-4 border-b border-border py-2.5 text-sm last:border-0">
+      <dt className="text-muted">{label}</dt>
+      <dd className="text-right font-medium">{value || "—"}</dd>
+    </div>
+  );
+}
+
+export function Stat({ label, value, tone }: { label: string; value: number; tone: "brand" | "warning" | "danger" }) {
+  const tones = { brand: "text-brand", warning: "text-warning", danger: "text-danger" };
+  return (
+    <div className="rounded-2xl border border-border bg-surface p-4 shadow-card">
+      <p className={cx("font-display text-3xl font-semibold", value === 0 ? "text-muted/50" : tones[tone])}>{value}</p>
+      <p className="mt-0.5 text-xs text-muted">{label}</p>
+    </div>
+  );
+}
+
+const COMMON_VACCINES = [
+  "Antirrábica",
+  "Múltiple canina (séxtuple)",
+  "Parvovirus",
+  "Moquillo",
+  "Bordetella (tos de las perreras)",
+  "Leptospirosis",
+  "Triple felina",
+  "Leucemia felina",
+];
+
+function VaccineFields({ v }: { v?: Vaccination }) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      <Field label="Vacuna">
+        <Input
+          name="vaccine"
+          required
+          maxLength={120}
+          defaultValue={v?.vaccine}
+          placeholder="Antirrábica"
+          list="vacunas-comunes"
+        />
+      </Field>
+      <Field label="Lote (opcional)">
+        <Input name="batch_number" maxLength={60} defaultValue={v?.batch_number ?? ""} />
+      </Field>
+      <Field label="Fecha de aplicación">
+        <Input name="applied_on" type="date" required defaultValue={v?.applied_on} />
+      </Field>
+      <Field label="Próxima dosis (opcional)">
+        <Input name="next_due" type="date" defaultValue={v?.next_due ?? ""} />
+      </Field>
+      <div className="sm:col-span-2">
+        <Field label="Notas (opcional)">
+          <Textarea name="notes" maxLength={500} defaultValue={v?.notes ?? ""} />
+        </Field>
+      </div>
+    </div>
+  );
+}
+
+export function canWrite(record: PetRecord) {
+  return record.isOwner || record.clinicalAccess;
+}
+
+export function AddPanel({
+  icon: Icon,
+  title,
+  tone = "brand",
+  open,
+  children,
+}: {
+  icon: typeof Syringe;
+  title: string;
+  tone?: "brand" | "danger";
+  open?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <details className="rounded-2xl border border-border bg-surface p-5 shadow-card sm:p-6" open={open}>
+      <summary className="flex cursor-pointer list-none items-center gap-3 font-semibold">
+        <span
+          className={cx(
+            "grid size-10 place-items-center rounded-xl",
+            tone === "danger" ? "bg-danger-soft text-danger" : "bg-brand-soft text-brand",
+          )}
+        >
+          <Icon aria-hidden className="size-5" />
+        </span>
+        {title}
+      </summary>
+      <div className="mt-4">{children}</div>
+    </details>
+  );
+}
+
+export function VaccinesTab({ record, variant }: { record: PetRecord; variant: "owner" | "clinical" }) {
+  const action = addVaccination.bind(null, record.pet.id);
+  const statusBadge = {
+    ok: { tone: "brand" as const, label: "Próxima" },
+    soon: { tone: "warning" as const, label: "Por vencer" },
+    overdue: { tone: "danger" as const, label: "Vencida" },
+  };
+  return (
+    <>
+      <datalist id="vacunas-comunes">
+        {COMMON_VACCINES.map((v) => (
+          <option key={v} value={v} />
+        ))}
+      </datalist>
+      {canWrite(record) && (
+        <AddPanel icon={Syringe} title="Registrar vacuna" open={record.vaccinations.length === 0}>
+          <form action={action} className="flex flex-col gap-3">
+            <VaccineFields />
+            <Button className="self-start">Guardar vacuna</Button>
+          </form>
+        </AddPanel>
+      )}
+      {record.vaccinations.length === 0 ? (
+        <EmptyState
+          icon={Syringe}
+          title="Sin vacunas registradas"
+          text="Agrega la cartilla de vacunación para recibir recordatorios."
+        />
+      ) : variant === "clinical" ? (
+        <Card className="overflow-hidden p-0 sm:p-0">
+          <div className="hidden grid-cols-[2fr_1.1fr_1fr_1.2fr_1.6fr] gap-3 border-b border-border bg-surface-2 px-4 py-2.5 text-xs font-semibold tracking-wide text-muted uppercase sm:grid">
+            <span>Vacuna</span>
+            <span>Aplicada</span>
+            <span>Lote</span>
+            <span>Vigencia</span>
+            <span>Registró</span>
+          </div>
+          <ul className="divide-y divide-border">
+            {record.vaccinations.map((v) => {
+              const st = v.next_due ? statusBadge[vaccineStatus(v.next_due)] : null;
+              return (
+                <li key={v.id} className="px-4 py-3 text-sm">
+                  <div className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1 sm:grid-cols-[2fr_1.1fr_1fr_1.2fr_1.6fr] sm:items-center">
+                    <span className="font-medium">{v.vaccine}</span>
+                    <span className="text-muted sm:text-foreground">{formatDate(v.applied_on)}</span>
+                    <span className="font-mono text-xs text-muted">{v.batch_number ?? "Sin lote"}</span>
+                    <span>
+                      {st && v.next_due ? (
+                        <Badge tone={st.tone}>{formatDate(v.next_due)}</Badge>
+                      ) : (
+                        <span className="text-muted">Sin refuerzo</span>
+                      )}
+                    </span>
+                    <span className="col-span-2 text-xs text-muted sm:col-span-1">
+                      {v.source === "vet" ? "MVZ" : v.source === "estudiante" ? "Estudiante" : "Propietario · sin verificar"}
+                      {v.author_cedula ? ` · ${v.author_cedula}` : ""}
+                    </span>
+                  </div>
+                  {v.notes && <p className="mt-1 text-xs text-muted">{v.notes}</p>}
+                  {canWrite(record) && (
+                    <details className="mt-2 text-xs">
+                      <summary className="cursor-pointer text-muted">Corregir</summary>
+                      <form action={action} className="mt-3 flex flex-col gap-3 text-sm">
+                        <input type="hidden" name="amends_id" value={v.id} />
+                        <VaccineFields v={v} />
+                        <Button variant="secondary" className="self-start">
+                          Guardar corrección
+                        </Button>
+                      </form>
+                    </details>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </Card>
+
+      ) : (
+        <ol className="ml-1.5 flex flex-col gap-3 border-l-2 border-border pl-5">
+          {record.vaccinations.map((v) => {
+            const st = v.next_due ? statusBadge[vaccineStatus(v.next_due)] : null;
+            return (
+              <li key={v.id} className="relative">
+                <span
+                  aria-hidden
+                  className={cx(
+                    "absolute top-7 -left-[1.6rem] size-3 rounded-full ring-4 ring-background",
+                    st?.tone === "danger" ? "bg-danger" : st?.tone === "warning" ? "bg-warning" : "bg-brand",
+                  )}
+                />
+                <Card>
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <h3 className="text-lg font-semibold">{v.vaccine}</h3>
+                      <p className="text-sm text-muted">
+                        Aplicada el {formatDate(v.applied_on)}
+                        {v.batch_number ? ` · Lote ${v.batch_number}` : ""}
+                      </p>
+                    </div>
+                    {st && v.next_due && (
+                      <Badge tone={st.tone}>
+                        {st.label}: {formatDate(v.next_due)}
+                      </Badge>
+                    )}
+                  </div>
+                  {v.notes && <p className="mt-2 text-sm">{v.notes}</p>}
+                  {v.amends_id && <p className="mt-1 text-xs text-muted">Corrige un registro anterior.</p>}
+                  <EntryAuthor
+                    source={v.source}
+                    authorName={v.author_name}
+                    authorCedula={v.author_cedula}
+                    createdAt={v.created_at}
+                  />
+                  {canWrite(record) && (
+                    <details className="mt-3 text-sm">
+                      <summary className="cursor-pointer text-muted">Corregir este registro</summary>
+                      <form action={action} className="mt-3 flex flex-col gap-3">
+                        <input type="hidden" name="amends_id" value={v.id} />
+                        <VaccineFields v={v} />
+                        <Button variant="secondary" className="self-start">
+                          Guardar corrección
+                        </Button>
+                      </form>
+                    </details>
+                  )}
+                </Card>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+    </>
+  );
+}
+
+function ConditionFields({ c }: { c?: Condition }) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      <Field label="Tipo">
+        <Select name="kind" defaultValue={c?.kind ?? "alergia"}>
+          <option value="alergia">Alergia</option>
+          <option value="cronica">Enfermedad crónica</option>
+        </Select>
+      </Field>
+      <Field label="Severidad (opcional)">
+        <Select name="severity" defaultValue={c?.severity ?? ""}>
+          <option value="">Sin especificar</option>
+          <option value="leve">Leve</option>
+          <option value="moderada">Moderada</option>
+          <option value="grave">Grave</option>
+        </Select>
+      </Field>
+      <div className="sm:col-span-2">
+        <Field label="Descripción">
+          <Input name="description" required maxLength={500} defaultValue={c?.description} placeholder="Penicilina" />
+        </Field>
+      </div>
+      <Field label="Estado">
+        <Select name="active" defaultValue={c && !c.active ? "no" : "si"}>
+          <option value="si">Vigente</option>
+          <option value="no">Resuelto / ya no aplica</option>
+        </Select>
+      </Field>
+      <Field label="Notas (opcional)">
+        <Input name="notes" maxLength={500} defaultValue={c?.notes ?? ""} />
+      </Field>
+    </div>
+  );
+}
+
+export function ConditionsTab({ record, variant }: { record: PetRecord; variant: "owner" | "clinical" }) {
+  const action = addCondition.bind(null, record.pet.id);
+  const groups = [
+    { kind: "alergia" as const, title: "Alergias", icon: TriangleAlert },
+    { kind: "cronica" as const, title: "Enfermedades crónicas", icon: HeartPulse },
+  ];
+  return (
+    <>
+      <p className="text-sm text-muted">
+        {variant === "owner"
+          ? "Anota alergias y padecimientos que conozcas. Quedan como \"Propietario · sin verificar\" hasta que un MVZ los registre."
+          : "Primero lo vigente. Las entradas del propietario aparecen marcadas como sin verificar."}
+      </p>
+      {canWrite(record) && (
+        <AddPanel icon={HeartPulse} title="Agregar alergia o padecimiento" tone="danger">
+          <form action={action} className="flex flex-col gap-3">
+            <ConditionFields />
+            <Button className="self-start">Guardar</Button>
+          </form>
+        </AddPanel>
+      )}
+      {groups.map((g) => {
+        const items = record.conditions
+          .filter((c) => c.kind === g.kind)
+          .sort((a, b) => Number(b.active) - Number(a.active));
+        return (
+          <section key={g.kind} className="flex flex-col gap-3">
+            <h2 className="flex items-center gap-2 text-lg font-semibold">
+              <g.icon aria-hidden className="size-5 text-danger" /> {g.title}
+            </h2>
+            {items.length === 0 ? (
+              <p className="text-sm text-muted">Sin registros.</p>
+            ) : (
+              items.map((c) => (
+                <Card
+                  key={c.id}
+                  className={cx(!c.active && "opacity-70", c.severity === "grave" && c.active && "border-danger/40")}
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-lg font-semibold">{c.description}</h3>
+                    {c.severity && (
+                      <Badge tone={c.severity === "grave" ? "danger" : c.severity === "moderada" ? "warning" : "neutral"}>
+                        {c.severity}
+                      </Badge>
+                    )}
+                    {!c.active && <Badge>Resuelto</Badge>}
+                  </div>
+                  {c.notes && <p className="mt-2 text-sm">{c.notes}</p>}
+                  <EntryAuthor
+                    source={c.source}
+                    authorName={c.author_name}
+                    authorCedula={c.author_cedula}
+                    createdAt={c.created_at}
+                  />
+                  {canWrite(record) && (
+                    <details className="mt-3 text-sm">
+                      <summary className="cursor-pointer text-muted">Actualizar o corregir</summary>
+                      <form action={action} className="mt-3 flex flex-col gap-3">
+                        <input type="hidden" name="amends_id" value={c.id} />
+                        <ConditionFields c={c} />
+                        <Button variant="secondary" className="self-start">
+                          Guardar actualización
+                        </Button>
+                      </form>
+                    </details>
+                  )}
+                </Card>
+              ))
+            )}
+          </section>
+        );
+      })}
+    </>
+  );
+}
+
+export function AttachmentsTab({ record }: { record: PetRecord }) {
+  const labels = { estudio: "Estudio", receta: "Receta", otro: "Otro" };
+  return (
+    <>
+      {canWrite(record) && (
+        <Card>
+          <CardTitle
+            icon={FileText}
+            title="Subir anexo"
+            subtitle="PDF o imagen de hasta 5 MB: estudios, recetas, radiografías."
+          />
+          <AttachmentUploader petId={record.pet.id} />
+        </Card>
+      )}
+      {record.attachments.length === 0 ? (
+        <EmptyState icon={FileText} title="Sin anexos" text="Los estudios y recetas que se suban aparecerán aquí." />
+      ) : (
+        <ul className="grid gap-3 sm:grid-cols-2">
+          {record.attachments.map((a) => (
+            <li key={a.id}>
+              <Card className="h-full">
+                <div className="flex items-start gap-3">
+                  <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-accent-soft text-accent">
+                    <FileText aria-hidden className="size-5" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <Badge>{labels[a.kind]}</Badge>
+                    <h3 className="mt-1 font-semibold">{a.title}</h3>
+                    {a.notes && <p className="text-sm text-muted">{a.notes}</p>}
+                  </div>
+                </div>
+                <ButtonLink
+                  href={`/api/archivos/${a.id}`}
+                  variant="secondary"
+                  target="_blank"
+                  prefetch={false}
+                  className="mt-3 w-full"
+                >
+                  <Eye aria-hidden /> Abrir {a.mime_type === "application/pdf" ? "PDF" : "imagen"}
+                </ButtonLink>
+                <EntryAuthor
+                  source={a.source}
+                  authorName={a.author_name}
+                  authorCedula={a.author_cedula}
+                  createdAt={a.created_at}
+                />
+              </Card>
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
+}
+
+export function TagTab({ record }: { record: PetRecord }) {
+  const { pet } = record;
+  const active = record.tags.find((t) => t.status === "activa");
+  return (
+    <div className="grid gap-5 md:grid-cols-2">
+      <Card>
+        <CardTitle icon={QrCode} title="Placa QR" />
+        {active ? (
+          <div className="flex flex-col items-center gap-4 text-center">
+            {/* eslint-disable-next-line @next/next/no-img-element -- SVG generado por la API */}
+            <img
+              src={`/api/qr/${active.public_token}`}
+              alt="Código QR de la placa"
+              className="size-44 rounded-full border-[6px] border-coral bg-white p-7"
+            />
+            <div className="flex flex-col gap-1 text-sm">
+              <p className="font-mono text-lg font-semibold tracking-widest">{active.public_token}</p>
+              <p className="text-muted">Activada el {formatDate(active.activated_at)}</p>
+            </div>
+            <div className="flex flex-wrap justify-center gap-2">
+              <ButtonLink href={`/p/${active.public_token}`} variant="secondary" target="_blank">
+                <Eye aria-hidden /> Ver lo que ven al escanear
+              </ButtonLink>
+              <form action={revokeTag.bind(null, pet.id, active.id)}>
+                <Button
+                  variant="ghost"
+                  className="text-danger"
+                  confirm="¿Desactivar esta placa? Dejará de mostrar datos al escanearse y no se puede reactivar."
+                >
+                  Desactivar (placa perdida)
+                </Button>
+              </form>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3 text-sm">
+            <p className="text-muted">
+              {pet.name} aún no tiene una placa activa. Escanea tu placa nueva con el celular o escribe su código.
+            </p>
+            <ButtonLink href={`/placas/activar?mascota=${pet.id}`} className="self-start">
+              <QrCode aria-hidden /> Activar una placa
+            </ButtonLink>
+          </div>
+        )}
+        <p className="mt-4 text-center text-xs text-muted">URL de la placa: {siteUrl()}/p/…</p>
+      </Card>
+
+      <Card>
+        <CardTitle icon={Eye} title="Qué ve quien escanea la placa" />
+        <form action={updatePublicSettings.bind(null, pet.id)} className="flex flex-col gap-4 text-sm">
+          <p className="text-muted">
+            Siempre se muestra el nombre de {pet.name} y tu nombre de pila. El historial clínico solo lo ven médicos
+            veterinarios verificados.
+          </p>
+          <label className="flex items-center gap-2.5">
+            <input type="checkbox" name="show_phone" defaultChecked={pet.show_phone} className="size-4" />
+            Mostrar mi teléfono (botones de llamar y WhatsApp)
+          </label>
+          <label className="flex items-center gap-2.5">
+            <input type="checkbox" name="show_photo" defaultChecked={pet.show_photo} className="size-4" />
+            Mostrar la foto de {pet.name}
+          </label>
+          {pet.status === "activo" && (
+            <div className="rounded-xl border border-danger/30 bg-danger-soft/50 p-4">
+              <label className="flex items-center gap-2.5 font-medium">
+                <input type="checkbox" name="lost_mode" defaultChecked={pet.lost_mode} className="size-4" />
+                <Siren aria-hidden className="size-4 text-danger" /> Modo extraviado
+              </label>
+              <p className="mt-1 text-muted">
+                Muestra un aviso destacado y te avisamos cada vez que alguien escanee la placa.
+              </p>
+              <div className="mt-3">
+                <Field label="Mensaje para quien la encuentre (opcional)">
+                  <Textarea
+                    name="lost_message"
+                    maxLength={280}
+                    defaultValue={pet.lost_message ?? ""}
+                    placeholder="Se perdió cerca del parque. Necesita medicamento diario. Gracias."
+                  />
+                </Field>
+              </div>
+            </div>
+          )}
+          <Button className="self-start">Guardar</Button>
+        </form>
+      </Card>
+    </div>
+  );
+}
+
+const accessLabel = { escaneo: "Escaneó la placa", codigo: "Con código", cita: "Cita agendada" };
+
+type AccessRow = PetRecord["access"][number];
+
+/** Agrupa la bitácora por clínico: un renglón por persona con su acceso más reciente. */
+function byClinician(rows: AccessRow[]) {
+  const now = Date.now();
+  const groups = new Map<string, { latest: AccessRow; until: string; visits: number }>();
+  for (const a of rows) {
+    const g = groups.get(a.vet_id);
+    if (!g) groups.set(a.vet_id, { latest: a, until: a.expires_at, visits: 1 });
+    else {
+      g.visits++;
+      if (a.expires_at > g.until) g.until = a.expires_at;
+    }
+  }
+  return [...groups.entries()].map(([vetId, g]) => ({ vetId, ...g, active: new Date(g.until).getTime() > now }));
+}
+
+export function AccessTab({ record, code }: { record: PetRecord; code: string | null }) {
+  const clinicians = byClinician(record.access).sort((a, b) => Number(b.active) - Number(a.active));
+  return (
+    <>
+      <Card>
+        <CardTitle
+          icon={KeyRound}
+          title="Compartir con un MVZ sin escanear"
+          subtitle="Código de 6 caracteres, válido 24 h y de un solo uso. El MVZ obtiene acceso por 7 días."
+        />
+        {code ? (
+          <div className="flex flex-col items-start gap-3 rounded-2xl border-2 border-dashed border-brand/40 bg-brand-soft p-4">
+            <p className="text-sm text-muted">Dicta o comparte este código con tu MVZ:</p>
+            <div className="flex flex-wrap items-center gap-3">
+              <p className="font-mono text-3xl font-semibold tracking-[0.3em] text-brand-strong">{code}</p>
+              <CopyButton value={code} />
+            </div>
+            <p className="text-xs text-muted">Por seguridad solo se muestra una vez. Si lo pierdes, genera otro.</p>
+            <CleanFlashParams />
+          </div>
+        ) : (
+          <form action={createShareCode.bind(null, record.pet.id)}>
+            <Button variant="secondary">
+              <KeyRound aria-hidden /> Generar código
+            </Button>
+          </form>
+        )}
+      </Card>
+      <Card>
+        <CardTitle
+          icon={ShieldCheck}
+          title="Quién tiene acceso al expediente"
+          subtitle="Puedes retirar el acceso de un clínico en cualquier momento."
+        />
+        {clinicians.length === 0 ? (
+          <p className="text-sm text-muted">Nadie ha accedido al expediente.</p>
+        ) : (
+          <ul className="flex flex-col divide-y divide-border text-sm">
+            {clinicians.map(({ vetId, latest: a, until, visits, active }) => {
+              const isStudent = a.profiles?.role === "student";
+              const name = a.profiles?.full_name ?? "Clínico";
+              return (
+                <li key={vetId} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                  <span className="flex min-w-0 flex-col">
+                    <span className="flex flex-wrap items-center gap-2 font-medium">
+                      {name}
+                      {isStudent && (
+                        <Badge tone="warning">
+                          <GraduationCap aria-hidden /> No profesionista
+                        </Badge>
+                      )}
+                      {active ? <Badge tone="brand">Vigente hasta {formatDate(until)}</Badge> : <Badge>Vencido</Badge>}
+                    </span>
+                    <span className="text-xs text-muted">
+                      {isStudent
+                        ? a.profiles?.student_profiles?.university
+                        : [
+                            a.profiles?.vet_profiles?.cedula ? `Cédula ${a.profiles.vet_profiles.cedula}` : null,
+                            a.profiles?.vet_profiles?.clinic_name,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                    </span>
+                    <span className="text-xs text-muted">
+                      Último acceso: {accessLabel[a.source]} · {formatDateTime(a.granted_at)}
+                      {visits > 1 ? ` · ${visits} accesos` : ""}
+                    </span>
+                  </span>
+                  {active && (
+                    <form action={revokeClinicianAccess.bind(null, record.pet.id, vetId)}>
+                      <Button
+                        variant="ghost"
+                        className="min-h-9 px-3 text-xs text-danger"
+                        confirm={`¿Retirar el acceso de ${name}? Dejará de ver el expediente y se cancelarán sus citas pendientes.`}
+                      >
+                        Retirar acceso
+                      </Button>
+                    </form>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </Card>
+      <Card>
+        <CardTitle icon={QrCode} title="Escaneos recientes de la placa" />
+        {record.scans.length === 0 ? (
+          <p className="text-sm text-muted">Sin escaneos.</p>
+        ) : (
+          <ul className="flex flex-col divide-y divide-border text-sm">
+            {record.scans.map((s) => (
+              <li key={s.id} className="flex flex-wrap justify-between gap-2 py-2.5">
+                <span>{s.kind === "vet" ? "Clínico verificado" : "Persona sin cuenta"}</span>
+                <span className="text-muted">
+                  {formatDateTime(s.created_at)}
+                  {s.latitude != null && s.longitude != null && (
+                    <>
+                      {" · "}
+                      <a
+                        className="underline"
+                        target="_blank"
+                        rel="noreferrer"
+                        href={`https://maps.google.com/?q=${s.latitude},${s.longitude}`}
+                      >
+                        Ver ubicación
+                      </a>
+                    </>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+    </>
+  );
+}
